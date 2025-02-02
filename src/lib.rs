@@ -104,7 +104,7 @@
 //!     15, 16, 17
 //! ]);
 //!
-//! // Get the first element of axis 2 (equivalent to `array.get([0, 0, 2])`).
+//! // Get the first element of index 1 of axis 2 (equivalent to `array.get([0, 0, 1])`).
 //! assert_eq!(array[[0, 0, 1]], 9);
 //!
 //! // Get the second and third row.
