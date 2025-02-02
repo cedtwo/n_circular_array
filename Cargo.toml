@@ -1,0 +1,11 @@
+[package]
+name = "n_circular_array"
+authors = ["Christopher Edward Dawn"]
+version = "0.1.0"
+edition = "2021"
+description = "An n-dimensional circular array"
+readme = "README.md"
+repository = "https://github.com/cedtwo/n_circular_array.git"
+license = "MIT OR Apache-2.0"
+keywords = ["circular", "array", "matrix", "vector"]
+categories = ["mathematics", "memory-management", "data-structures"]
