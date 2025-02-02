@@ -93,7 +93,7 @@
 //! # use n_circular_array::CircularArrayMut;
 //! # use n_circular_array::CircularArrayIndex;
 //!
-//! // A 2-dn_n_imensional circular array of 3 * 3 * 2 elements.
+//! // A 2-dimensional circular array of 3 * 3 * 2 elements.
 //! let mut array = CircularArrayVec::new([3, 3, 2], vec![
 //!      0,  1,  2,
 //!      3,  4,  5,
