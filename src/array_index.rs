@@ -138,7 +138,11 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
             assert!(range.len() > 0);
             assert!(range.len() <= self.shape[i]);
 
-            BoundSpan::new(range.start + self.offset[i], range.len(), self.shape[i]) % self.shape[i]
+            BoundSpan::new(
+                (range.start + self.offset[i]) % self.shape[i],
+                range.len(),
+                self.shape[i],
+            ) % self.shape[i]
         });
 
         CircularIterator::new(spans)
@@ -348,7 +352,7 @@ mod tests {
     #[test]
     fn iter_slice() {
         let shape = [3, 3, 3];
-        let m = CircularArrayVec::from_iter_offset(shape, 0..shape.iter().product(), [1, 1, 1]);
+        let mut m = CircularArrayVec::from_iter_offset(shape, 0..shape.iter().product(), [1, 1, 1]);
 
         #[rustfmt::skip]
         assert_eq!(m.iter_slice([0..1, 0..1, 0..1]).cloned().collect::<Vec<_>>(), &[13]);
@@ -357,6 +361,17 @@ mod tests {
             22, 23, 21,
             25, 26, 24,
             19, 20, 18
+        ]);
+
+        m.offset = [2, 2, 2];
+
+        #[rustfmt::skip]
+        assert_eq!(m.iter_slice([0..1, 0..1, 0..1]).cloned().collect::<Vec<_>>(), &[26]);
+        #[rustfmt::skip]
+        assert_eq!(m.iter_slice([0..3, 0..3, 1..2]).cloned().collect::<Vec<_>>(), &[
+            8, 6, 7,
+            2, 0, 1,
+            5, 3, 4
         ]);
     }
 
