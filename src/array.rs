@@ -69,6 +69,11 @@ where
     pub fn next_offset(&self, axis: usize, n: isize) -> usize {
         (((self.shape[axis] + self.offset[axis]) as isize + n) % self.shape[axis] as isize) as usize
     }
+
+    /// Consume the `CircularArray`, returning the inner collection.
+    pub fn take(self) -> A {
+        self.array
+    }
 }
 
 impl<const N: usize, T> CircularArray<N, Vec<T>, T> {
