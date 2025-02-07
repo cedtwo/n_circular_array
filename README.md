@@ -7,11 +7,13 @@ An n-dimensional circular array.
 - Element insertion to the front or back of any dimension.
 - Indexing, range and slicing operations.
 - Performant operations for sequentual `Copy` type elements.
-- Thorough testing for arrays of smaller dimensionality and no external dependencies.
+- Thorough testing for arrays of smaller dimensionality
+- No external dependencies.
 
 ## Usage
 
-The following example demonstrates the
+The following example demonstrates the basic functionality offered by this
+crate.
 
 ```rust
 // A 1-dimensional circular array of 6 elements.
@@ -129,12 +131,12 @@ See `[CircularArrayIndex]` and `[CircularArrayIndexMut]`.
 
 ## Resizing/Reshaping
 
-No resizing or reshaping operations are offered, however the same functionality
-can be achieved by iterating and collecting into a new `array`. No method is
-offered for this functionality to make the performance implications explicit.
+Resizing or reshaping can be achieved by iterating and collecting into a new
+`CircularArray`. This functionality is not offered from within the crate to make the
+performance implications explicit.
 
 ```rust
-// A 2-dimensional circular array of 3 * 3 * 2 elements.
+// A 3-dimensional array of shape [3, 3, 2].
 let mut array = CircularArrayVec::new([3, 3, 2], vec![
      0,  1,  2,
      3,  4,  5,
@@ -158,7 +160,7 @@ assert_eq!(array.iter().cloned().collect::<Vec<_>>(), &[
 ]);
 assert_eq!(array.offset(), &[1, 0, 0]);
 
-// Iterate over index 1 of axis 2 into a new array of size [3, 3].
+// Iterate over index 1 of axis 2 into a 2-dimensional array of shape [3, 3].
 let iter = array.iter_slice([0..3, 0..3, 1..2]).cloned();
 let array_2 = CircularArrayVec::from_iter([3, 3], iter);
 
