@@ -7,8 +7,11 @@
 //! - Element insertion to the front or back of any dimension.
 //! - Indexing, range and slicing operations.
 //! - Performant operations for sequentual `Copy` type elements.
+//! - Thorough testing for arrays of smaller dimensionality and no external dependencies.
 //!
 //! ## Usage
+//!
+//! The following example demonstrates the
 //!
 //! ```
 //! # use n_circular_array::CircularArrayVec;
@@ -36,12 +39,20 @@
 //!     4, 5, 10,
 //!     7, 8, 11
 //! ]);
+//!
 //! // Push to the back of axis 1.
 //! array.push_back(1, &[12, 13, 14]);
 //! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
 //!     12, 13, 14,
 //!      1,  2,  9,
 //!      4,  5, 10
+//! ]);
+//!
+//! // Iterate over index 1 of axis 0 (The second column).
+//! assert_eq!(array.iter_index(0, 1).cloned().collect::<Vec<usize>>(), &[
+//!     13,
+//!      2,
+//!      5
 //! ]);
 //! ```
 //!
@@ -86,7 +97,9 @@
 //!
 //! ## Indexing
 //!
-//! `n_circular_array` allows for elements to be accessed by index or slice.
+//! `n_circular_array` allows for elements to be accessed by index or slice. Note
+//! that indexing operations take a fixed size array of `N` indices/ranges where `N`
+//! is the dimensionality of the array.
 //!
 //! ```
 //! # use n_circular_array::CircularArrayVec;
@@ -104,7 +117,7 @@
 //!     15, 16, 17
 //! ]);
 //!
-//! // Get the first element of index 1 of axis 2 (equivalent to `array.get([0, 0, 1])`).
+//! // Get the first element at index 1 of axis 2 (equivalent to `array.get([0, 0, 1])`).
 //! assert_eq!(array[[0, 0, 1]], 9);
 //!
 //! // Get the second and third row.
@@ -116,7 +129,7 @@
 //!     15, 16, 17
 //! ]);
 //!
-//! // Get the third row of the second slice of axis 2.
+//! // Elements of all columns, for the third row (index 2), of the second slice (index 1 of axis 2).
 //! assert_eq!(array.iter_slice([0..3, 2..3, 1..2]).cloned().collect::<Vec<_>>(), &[
 //!     15, 16, 17
 //! ]);
@@ -175,8 +188,9 @@
 //! (or a lack thereof). Wrapping contigous slices over the bounds of an axis further
 //! reduces cache locality. Where possible, an array should be oriented in which the
 //! majority of operations are performed on the outermost dimension(s). `n_circular_array`
-//! will take contiguous slices of memory where possible. For elements that implement
-//! `Copy`, this can result in an insertion of as little as a single call to `copy_from_slice`.
+//! will take contiguous slices of memory where possible. This can result in certain
+//! being as little as an iteration over a single contiguous slice, or for elements
+//! implementing `Copy`, as a single call to `copy_from_slice`.
 //!
 
 mod array;
