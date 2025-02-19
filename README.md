@@ -1,7 +1,9 @@
-# N Circular Array
+# n_circular_array
+
+## N Circular Array
 An n-dimensional circular array.
 
-## Features
+### Features
 
 - Fixed dimension arrays of any size.
 - Element insertion to the front or back of any dimension.
@@ -10,7 +12,7 @@ An n-dimensional circular array.
 - Thorough testing for arrays of smaller dimensionality
 - No external dependencies.
 
-## Usage
+### Usage
 
 The following example demonstrates the basic functionality offered by this
 crate.
@@ -24,7 +26,7 @@ assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[2, 3, 4, 5, 6, 7]);
 array.push_back(0, &[0, 1]);
 assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[0, 1, 2, 3, 4, 5]);
 
-// A 2-dimensional circular array of 3^2 elements.
+// A 2-dimensional array of 3*3 elements.
 let mut array = CircularArrayVec::new([3, 3], vec![
     0, 1, 2,
     3, 4, 5,
@@ -55,7 +57,7 @@ assert_eq!(array.iter_index(0, 1).cloned().collect::<Vec<usize>>(), &[
 ]);
 ```
 
-## Mutation
+### Mutation
 
 `n_circular_array` allows for mutating single elements, or inserting any number
 of slices to an axis. Insertion operations expect elements arranged as a **row-major**
@@ -65,7 +67,7 @@ This is the default behaviour when slicing into `ndarray` or `nalgebra` arrays.
 
 ```rust
 
-// A 2-dimensional circular array of 3^2 elements.
+// A 2-dimensional circular array of 3*2 elements.
 let mut array = CircularArrayVec::new([3, 3], vec![
     0, 1, 2,
     3, 4, 5,
@@ -91,7 +93,7 @@ assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
 ```
 See `[CircularArrayMut]`.
 
-## Indexing
+### Indexing
 
 `n_circular_array` allows for elements to be accessed by index or slice. Note
 that indexing operations take a fixed size array of `N` indices/ranges where `N`
@@ -99,7 +101,7 @@ is the dimensionality of the array.
 
 ```rust
 
-// A 2-dimensional circular array of 3 * 3 * 2 elements.
+// A 3-dimensional array of 3*3*2 elements.
 let mut array = CircularArrayVec::new([3, 3, 2], vec![
      0,  1,  2,
      3,  4,  5,
@@ -129,14 +131,14 @@ assert_eq!(array.iter_slice([0..3, 2..3, 1..2]).cloned().collect::<Vec<_>>(), &[
 ```
 See `[CircularArrayIndex]` and `[CircularArrayIndexMut]`.
 
-## Resizing/Reshaping
+### Resizing/Reshaping
 
 Resizing or reshaping can be achieved by iterating and collecting into a new
 `CircularArray`. This functionality is not offered from within the crate to make the
 performance implications explicit.
 
 ```rust
-// A 3-dimensional array of shape [3, 3, 2].
+// A 3-dimensional array of 3*3*2 elements.
 let mut array = CircularArrayVec::new([3, 3, 2], vec![
      0,  1,  2,
      3,  4,  5,
@@ -172,15 +174,15 @@ assert_eq!(array_2.iter().cloned().collect::<Vec<_>>(), &[
 assert_eq!(array_2.offset(), &[0, 0]);
 ```
 
-# Performance
+## Performance
 
 The inner dimensions of any `n > 1` array are impacted the most by cache locality
 (or a lack thereof). Wrapping contigous slices over the bounds of an axis further
 reduces cache locality. Where possible, an array should be oriented in which the
 majority of operations are performed on the outermost dimension(s). `n_circular_array`
-will take contiguous slices of memory where possible. This can result in certain
-being as little as an iteration over a single contiguous slice, or for elements
-implementing `Copy`, as a single call to `copy_from_slice`.
-
+will take contiguous slices of memory where possible. This can result in operations
+being reduced to a single iteration over a contiguous slice, or a single call to
+`copy_from_slice` during mutation. "raw" operations are also available where the
+offset of dimension(s) are ignored, and elements are accessed in a contiguous order.
 
 License: MIT OR Apache-2.0

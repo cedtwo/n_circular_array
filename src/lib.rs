@@ -27,7 +27,7 @@
 //! array.push_back(0, &[0, 1]);
 //! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[0, 1, 2, 3, 4, 5]);
 //!
-//! // A 2-dimensional circular array of 3^2 elements.
+//! // A 2-dimensional array of 3*3 elements.
 //! let mut array = CircularArrayVec::new([3, 3], vec![
 //!     0, 1, 2,
 //!     3, 4, 5,
@@ -71,7 +71,7 @@
 //! # use n_circular_array::CircularArrayMut;
 //! # use n_circular_array::CircularArrayIndex;
 //!
-//! // A 2-dimensional circular array of 3^2 elements.
+//! // A 2-dimensional circular array of 3*2 elements.
 //! let mut array = CircularArrayVec::new([3, 3], vec![
 //!     0, 1, 2,
 //!     3, 4, 5,
@@ -108,7 +108,7 @@
 //! # use n_circular_array::CircularArrayMut;
 //! # use n_circular_array::CircularArrayIndex;
 //!
-//! // A 2-dimensional circular array of 3 * 3 * 2 elements.
+//! // A 3-dimensional array of 3*3*2 elements.
 //! let mut array = CircularArrayVec::new([3, 3, 2], vec![
 //!      0,  1,  2,
 //!      3,  4,  5,
@@ -148,7 +148,7 @@
 //! # use n_circular_array::CircularArrayVec;
 //! # use n_circular_array::CircularArrayIndex;
 //! # use n_circular_array::CircularArrayMut;
-//! // A 3-dimensional array of shape [3, 3, 2].
+//! // A 3-dimensional array of 3*3*2 elements.
 //! let mut array = CircularArrayVec::new([3, 3, 2], vec![
 //!      0,  1,  2,
 //!      3,  4,  5,
@@ -190,11 +190,10 @@
 //! (or a lack thereof). Wrapping contigous slices over the bounds of an axis further
 //! reduces cache locality. Where possible, an array should be oriented in which the
 //! majority of operations are performed on the outermost dimension(s). `n_circular_array`
-//! will take contiguous slices of memory where possible. This can result in certain
-//! being as little as an iteration over a single contiguous slice, or for elements
-//! implementing `Copy`, as a single call to `copy_from_slice`.
-//!
-
+//! will take contiguous slices of memory where possible. This can result in operations
+//! being reduced to a single iteration over a contiguous slice, or a single call to
+//! `copy_from_slice` during mutation. "raw" operations are also available where the
+//! offset of dimension(s) are ignored, and elements are accessed in a contiguous order.
 mod array;
 mod array_index;
 mod array_iter;
