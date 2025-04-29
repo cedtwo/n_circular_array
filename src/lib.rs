@@ -7,7 +7,8 @@
 //! - Element insertion to the front or back of any dimension.
 //! - Indexing, range and slicing operations.
 //! - Performant operations for sequentual `Copy` type elements.
-//! - Thorough testing for arrays of smaller dimensionality
+//! - Support for external types through `AsRef<[T]>` and `AsMut<[T]>`.
+//! - Thorough testing for arrays of smaller dimensionality.
 //! - No external dependencies.
 //!
 //! ## Usage
@@ -187,14 +188,21 @@
 //! # Performance
 //!
 //! The inner dimensions of any `n > 1` array are impacted the most by cache locality
-//! (or a lack thereof). Wrapping contigous slices over the bounds of an axis further
-//! reduces cache locality. Where possible, an array should be oriented in which the
-//! majority of operations are performed on the outermost dimension(s). `n_circular_array`
-//! will take contiguous slices of memory where possible. This can result in operations
+//! (or a lack thereof). Wrapping contigous slices over the bounds of an axis reduces
+//! cache locality. Where possible, an array should be oriented in which the majority
+//! of operations are performed on the outermost dimension(s). `n_circular_array`
+//! will take contiguous slices of memory where possible which can result in operations
 //! being reduced to a single iteration over a contiguous slice, or a single call to
-//! `copy_from_slice` during mutation. "raw" operations are also available where the
-//! offset of dimension(s) are ignored, and elements are accessed in a contiguous order.
+//! `copy_from_slice` during mutation.
+//!
+//! External types implementing `AsRef<[T]>` and `AsMut<[T]>` may also improve performance
+//! over `Vec<T>` or `Box<T>`. If necessary, `AsRef<[T]>` and `AsMut<[T]>` can be delegated
+//! to `unsafe` methods, although this is discouraged.
 mod array;
+
+#[macro_use]
+mod assertions;
+
 mod array_index;
 mod array_iter;
 mod array_mut;

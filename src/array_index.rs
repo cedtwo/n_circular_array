@@ -96,8 +96,8 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
     }
 
     fn iter_index(&'a self, axis: usize, index: usize) -> impl Iterator<Item = &'a T> {
-        assert!(axis < N);
-        assert!(index < self.shape[axis]);
+        assert_shape_index!(axis, N);
+        assert_slice_index!(self, axis, index);
 
         CircularIterator::new(
             self.spans_axis_bound(axis, BoundSpan::new(index, 1, self.shape[axis])),
@@ -107,9 +107,8 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
     }
 
     fn iter_range(&'a self, axis: usize, range: Range<usize>) -> impl Iterator<Item = &'a T> {
-        assert!(axis < N);
-        assert!(range.len() > 0);
-        assert!(range.len() <= self.shape[axis]);
+        assert_shape_index!(axis, N);
+        assert_slice_range!(self, axis, range);
 
         CircularIterator::new(self.spans_axis_bound(
             axis,
@@ -120,9 +119,8 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
     }
 
     fn iter_range_raw(&'a self, axis: usize, range: Range<usize>) -> impl Iterator<Item = &'a T> {
-        assert!(axis < N);
-        assert!(range.len() > 0);
-        assert!(range.len() <= self.shape[axis]);
+        assert_shape_index!(axis, N);
+        assert_slice_range!(self, axis, range);
 
         CircularIterator::new(self.spans_axis_bound_raw(
             axis,
@@ -135,8 +133,7 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
     fn iter_slice(&'a self, slice: [Range<usize>; N]) -> impl Iterator<Item = &'a T> {
         let spans = array::from_fn(|i| {
             let range = &slice[i];
-            assert!(range.len() > 0);
-            assert!(range.len() <= self.shape[i]);
+            assert_slice_range!(self, i, range);
 
             BoundSpan::new(
                 (range.start + self.offset[i]) % self.shape[i],
@@ -151,8 +148,8 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
     }
 
     fn iter_index_raw(&'a self, axis: usize, index: usize) -> impl Iterator<Item = &'a T> {
-        assert!(axis < N);
-        assert!(index < self.shape[axis]);
+        assert_shape_index!(axis, N);
+        assert_slice_index!(self, axis, index);
 
         CircularIterator::new(
             self.spans_axis_bound_raw(axis, BoundSpan::new(index, 1, self.shape[axis])),
@@ -163,7 +160,7 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
 
     fn get(&'a self, mut index: [usize; N]) -> &'a T {
         index.iter_mut().enumerate().for_each(|(i, idx)| {
-            assert!(*idx < self.shape[i]);
+            assert_slice_index!(self, i, *idx);
             *idx = (*idx + self.offset[i]) % (self.shape[i]);
         });
 
@@ -180,7 +177,7 @@ impl<'a, const N: usize, A: AsMut<[T]>, T: 'a> CircularArrayIndexMut<'a, N, T>
 {
     fn get_mut(&mut self, mut index: [usize; N]) -> &mut T {
         index.iter_mut().enumerate().for_each(|(i, idx)| {
-            assert!(*idx < self.shape[i]);
+            assert_slice_index!(self, i, *idx);
             *idx = (*idx + self.offset[i]) % (self.shape[i]);
         });
 

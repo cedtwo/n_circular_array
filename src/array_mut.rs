@@ -113,11 +113,12 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArrayMut<
     for CircularArray<N, A, T>
 {
     fn push_front(&mut self, axis: usize, el: &'a [T]) {
+        let el_len = el.len();
         let slice_len = self.slice_len(axis);
-        let n = el.len() / slice_len;
+        let n = el_len / slice_len;
 
-        assert!(el.len() % slice_len == 0);
-        assert!(n <= self.shape()[axis]);
+        assert_element_len!(axis, el_len, slice_len);
+        assert_slice_len!(self, axis, n);
 
         if n != 0 {
             // Copy/Clone into array, and clear offset.
@@ -135,11 +136,12 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArrayMut<
     }
 
     fn push_front_raw(&mut self, axis: usize, el: &'a [T]) {
+        let el_len = el.len();
         let slice_len = self.slice_len(axis);
-        let n = el.len() / slice_len;
+        let n = el_len / slice_len;
 
-        assert!(el.len() % slice_len == 0);
-        assert!(n <= self.shape()[axis]);
+        assert_element_len!(axis, el_len, slice_len);
+        assert_slice_len!(self, axis, n);
 
         if n != 0 {
             // Copy/Clone into array, and clear offset.
@@ -157,11 +159,12 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArrayMut<
     }
 
     fn push_back(&mut self, axis: usize, el: &'a [T]) {
+        let el_len = el.len();
         let slice_len = self.slice_len(axis);
-        let n = el.len() / slice_len;
+        let n = el_len / slice_len;
 
-        assert!(el.len() % slice_len == 0);
-        assert!(n <= self.shape()[axis]);
+        assert_element_len!(axis, el_len, slice_len);
+        assert_slice_len!(self, axis, n);
 
         if n != 0 {
             // Copy/Clone into array, and clear offset.
@@ -184,11 +187,12 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArrayMut<
     }
 
     fn push_back_raw(&mut self, axis: usize, el: &'a [T]) {
+        let el_len = el.len();
         let slice_len = self.slice_len(axis);
-        let n = el.len() / slice_len;
+        let n = el_len / slice_len;
 
-        assert!(el.len() % slice_len == 0);
-        assert!(n <= self.shape()[axis]);
+        assert_element_len!(axis, el_len, slice_len);
+        assert_slice_len!(self, axis, n);
 
         if n != 0 {
             // Copy/Clone into array, and clear offset.
