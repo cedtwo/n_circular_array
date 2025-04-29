@@ -51,6 +51,9 @@ macro_rules! bench_push {
     };
 }
 
-bench!(d2_n3, 2, 3);
-bench!(d3_n3, 3, 3);
-bench!(d4_n3, 4, 3);
+bench!(d2_n05, 2, 5);
+bench!(d2_n10, 2, 10);
+bench!(d3_n05, 3, 5);
+bench!(d3_n10, 3, 10);
+bench!(d4_n05, 4, 5);
+bench!(d4_n10, 4, 10);
