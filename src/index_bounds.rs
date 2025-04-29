@@ -5,7 +5,7 @@ use super::span::Span;
 use crate::span::BoundSpan;
 
 /// An `Iterator` of indices across an axis. Defines iteration strategies over the
-/// contained `Span`. This should be constructed by [`CircularIterator`] rather
+/// contained `Span`. This should be constructed by [`SpanIterator`] rather
 /// than manually.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct IndexBounds {

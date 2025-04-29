@@ -7,13 +7,13 @@ use crate::index_bounds::IndexBounds;
 use crate::span::BoundSpan;
 use crate::strides::Strides;
 
-/// `CircularArray` index iterator. Derives indices from the Cartesian product
-/// of `IndexBounds` sets  within. Returned contiguous sequences of indices where
+/// `CircularArray` index span iterator. Derives indices from the Cartesian product
+/// of `IndexBounds` sets  within. Returns contiguous sequences of indices where
 /// possible, starting at indices defined within the `Span`s provided.
 #[derive(Debug)]
-pub(crate) struct CircularIterator<const D: usize>([IndexBounds; D]);
+pub(crate) struct SpanIterator<const D: usize>([IndexBounds; D]);
 
-impl<const D: usize> CircularIterator<D> {
+impl<const D: usize> SpanIterator<D> {
     /// Create a new iterator for the given axis `spans`, with iteration aligned
     /// to the offset.
     pub(crate) fn new(spans: [BoundSpan; D]) -> Self {
@@ -26,7 +26,7 @@ impl<const D: usize> CircularIterator<D> {
             bounds
         });
 
-        CircularIterator(bounds)
+        SpanIterator(bounds)
     }
 
     /// Create a new iterator for the given axis `spans`, maintaining the contiguity
@@ -47,7 +47,7 @@ impl<const D: usize> CircularIterator<D> {
             bounds
         });
 
-        CircularIterator(bounds)
+        SpanIterator(bounds)
     }
 
     /// Get a reference to the inner `IndexBounds` array.
@@ -61,7 +61,7 @@ impl<const D: usize> CircularIterator<D> {
     }
 }
 
-impl<const D: usize> Iterator for CircularIterator<D> {
+impl<const D: usize> Iterator for SpanIterator<D> {
     type Item = RawIndexSpan<D>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -131,7 +131,7 @@ impl<'a, const N: usize, T: Iterator<Item = RawIndexSpan<N>> + 'a> RawIndexAdapt
 
 #[cfg(test)]
 mod test {
-    use crate::array_iter::CircularIterator;
+    use crate::span_iter::SpanIterator;
     use crate::CircularArrayVec;
 
     #[test]
@@ -140,7 +140,7 @@ mod test {
         let mut array = CircularArrayVec::from_iter(shape, 0..shape.iter().product());
 
         array.offset = [2, 2, 1];
-        let iter = CircularIterator::new(array.spans());
+        let iter = SpanIterator::new(array.spans());
         #[rustfmt::skip]
         assert_eq!(iter.collect::<Vec<_>>(), [
             ([2, 2, 1], [3, 2, 1]),
@@ -158,7 +158,7 @@ mod test {
         ]);
 
         array.offset = [0, 2, 1];
-        let iter = CircularIterator::new(array.spans());
+        let iter = SpanIterator::new(array.spans());
         #[rustfmt::skip]
         assert_eq!(iter.collect::<Vec<_>>(), [
             ([0, 2, 1], [3, 2, 1]),
@@ -168,7 +168,7 @@ mod test {
         ]);
 
         array.offset = [0, 0, 1];
-        let iter = CircularIterator::new(array.spans());
+        let iter = SpanIterator::new(array.spans());
         #[rustfmt::skip]
         assert_eq!(iter.collect::<Vec<_>>(), [
             ([0, 0, 1], [3, 2, 1]),
@@ -176,7 +176,7 @@ mod test {
         ]);
 
         array.offset = [0, 0, 0];
-        let iter = CircularIterator::new(array.spans());
+        let iter = SpanIterator::new(array.spans());
         #[rustfmt::skip]
         assert_eq!(iter.collect::<Vec<_>>(), [
             ([0, 0, 0], [3, 2, 1]),
@@ -189,19 +189,19 @@ mod test {
         let mut array = CircularArrayVec::from_iter(shape, 0..shape.iter().product());
 
         array.offset = [2, 2, 1];
-        let iter = CircularIterator::new_contiguous(array.spans());
+        let iter = SpanIterator::new_contiguous(array.spans());
         assert_eq!(iter.collect::<Vec<_>>(), [([0, 0, 0], [3, 2, 1]),]);
 
         array.offset = [0, 2, 1];
-        let iter = CircularIterator::new_contiguous(array.spans());
+        let iter = SpanIterator::new_contiguous(array.spans());
         assert_eq!(iter.collect::<Vec<_>>(), [([0, 0, 0], [3, 2, 1]),]);
 
         array.offset = [0, 0, 1];
-        let iter = CircularIterator::new_contiguous(array.spans());
+        let iter = SpanIterator::new_contiguous(array.spans());
         assert_eq!(iter.collect::<Vec<_>>(), [([0, 0, 0], [3, 2, 1]),]);
 
         array.offset = [0, 0, 0];
-        let iter = CircularIterator::new_contiguous(array.spans());
+        let iter = SpanIterator::new_contiguous(array.spans());
         assert_eq!(iter.collect::<Vec<_>>(), [([0, 0, 0], [3, 2, 1]),]);
     }
 }

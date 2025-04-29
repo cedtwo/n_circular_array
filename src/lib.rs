@@ -204,12 +204,12 @@ mod array;
 mod assertions;
 
 mod array_index;
-mod array_iter;
 mod array_mut;
 
 mod index;
 mod index_bounds;
 mod span;
+mod span_iter;
 mod strides;
 
 pub use array::{CircularArray, CircularArrayBox, CircularArrayVec};

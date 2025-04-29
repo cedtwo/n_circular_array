@@ -65,7 +65,7 @@ where
             .fold(1, |acc, (i, sh)| if i == axis { acc } else { acc * sh })
     }
 
-    /// Get the offset value after adding `n` to the given `axis`.
+    /// Get the offset value after adding `n` slices to the given `axis`.
     pub fn next_offset(&self, axis: usize, n: isize) -> usize {
         (((self.shape[axis] + self.offset[axis]) as isize + n) % self.shape[axis] as isize) as usize
     }

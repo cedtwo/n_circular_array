@@ -1,5 +1,5 @@
-use crate::array_iter::{CircularIterator, RawIndexAdaptor};
 use crate::span::BoundSpan;
+use crate::span_iter::{RawIndexAdaptor, SpanIterator};
 use crate::CircularArray;
 
 /// Mutating `CircularArray` operations.
@@ -89,7 +89,7 @@ impl<const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArray<N, A, T
     /// Push the given elements into the ranges defined by the given `spans`. Promotes
     /// cache locality for the input elements.
     fn push(&mut self, spans: [BoundSpan; N], mut el: &[T]) {
-        let iter = CircularIterator::new(spans).into_ranges(&self.strides);
+        let iter = SpanIterator::new(spans).into_ranges(&self.strides);
 
         for slice_range in iter {
             let len = slice_range.len();
@@ -220,7 +220,7 @@ mod tests {
 
     use super::*;
     use crate::array_index::CircularArrayIndex;
-    use crate::array_iter::RawIndexAdaptor;
+    use crate::span_iter::RawIndexAdaptor;
     use crate::CircularArrayVec;
 
     macro_rules! push_front {
@@ -232,7 +232,7 @@ mod tests {
             let n = $payload.len() / $m.slice_len($axis);
             $m.push_front($axis, $payload);
 
-            let slice = CircularIterator::new($m.spans_axis_bound(
+            let slice = SpanIterator::new($m.spans_axis_bound(
                 $axis,
                 BoundSpan::new($m.shape()[$axis] - n, n, $m.shape()[$axis]),
             ))
@@ -344,7 +344,7 @@ mod tests {
             let n = $payload.len() / $m.slice_len($axis);
             $m.push_back($axis, $payload);
 
-            let slice = CircularIterator::new(
+            let slice = SpanIterator::new(
                 $m.spans_axis_bound($axis, BoundSpan::new(0, n, $m.shape()[$axis])),
             )
             .into_indices(&$m.strides)

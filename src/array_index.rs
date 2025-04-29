@@ -1,11 +1,11 @@
 use std::array;
 use std::ops::{Index, IndexMut, Range};
 
-use crate::array_iter::{CircularIterator, RawIndexAdaptor};
 use crate::span::BoundSpan;
+use crate::span_iter::{RawIndexAdaptor, SpanIterator};
 use crate::CircularArray;
 
-/// Methods for retrieving elements from the array.
+/// Operations for retrieving elements from the array.
 pub trait CircularArrayIndex<'a, const N: usize, T: 'a> {
     /// Iterate over all elements of the inner array, aligned to the offset.
     fn iter(&'a self) -> impl Iterator<Item = &'a T>;
@@ -86,7 +86,7 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
     for CircularArray<N, A, T>
 {
     fn iter(&'a self) -> impl Iterator<Item = &'a T> {
-        CircularIterator::new(self.spans())
+        SpanIterator::new(self.spans())
             .into_ranges(&self.strides)
             .flat_map(|range| &self.array.as_ref()[range])
     }
@@ -99,18 +99,16 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
         assert_shape_index!(axis, N);
         assert_slice_index!(self, axis, index);
 
-        CircularIterator::new(
-            self.spans_axis_bound(axis, BoundSpan::new(index, 1, self.shape[axis])),
-        )
-        .into_ranges(&self.strides)
-        .flat_map(|range| &self.array.as_ref()[range])
+        SpanIterator::new(self.spans_axis_bound(axis, BoundSpan::new(index, 1, self.shape[axis])))
+            .into_ranges(&self.strides)
+            .flat_map(|range| &self.array.as_ref()[range])
     }
 
     fn iter_range(&'a self, axis: usize, range: Range<usize>) -> impl Iterator<Item = &'a T> {
         assert_shape_index!(axis, N);
         assert_slice_range!(self, axis, range);
 
-        CircularIterator::new(self.spans_axis_bound(
+        SpanIterator::new(self.spans_axis_bound(
             axis,
             BoundSpan::new(range.start, range.len(), self.shape[axis]),
         ))
@@ -122,7 +120,7 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
         assert_shape_index!(axis, N);
         assert_slice_range!(self, axis, range);
 
-        CircularIterator::new(self.spans_axis_bound_raw(
+        SpanIterator::new(self.spans_axis_bound_raw(
             axis,
             BoundSpan::new(range.start, range.len(), self.shape[axis]),
         ))
@@ -142,7 +140,7 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
             ) % self.shape[i]
         });
 
-        CircularIterator::new(spans)
+        SpanIterator::new(spans)
             .into_ranges(&self.strides)
             .flat_map(|range| &self.array.as_ref()[range])
     }
@@ -151,7 +149,7 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
         assert_shape_index!(axis, N);
         assert_slice_index!(self, axis, index);
 
-        CircularIterator::new(
+        SpanIterator::new(
             self.spans_axis_bound_raw(axis, BoundSpan::new(index, 1, self.shape[axis])),
         )
         .into_ranges(&self.strides)
