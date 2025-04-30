@@ -6,7 +6,7 @@
 //! - Fixed dimension arrays of any size.
 //! - Element insertion to the front or back of any dimension.
 //! - Indexing, range and slicing operations.
-//! - Performant operations for sequentual `Copy` type elements.
+//! - Optimized for contiguous memory.
 //! - Support for external types through `AsRef<[T]>` and `AsMut<[T]>`.
 //! - Thorough testing for arrays of smaller dimensionality.
 //! - No external dependencies.
@@ -62,11 +62,9 @@
 //! ## Mutation
 //!
 //! `n_circular_array` allows for mutating single elements, or inserting any number
-//! of slices to an axis. Insertion operations expect elements arranged as a **row-major**
-//! slice. That is, insertion of two columns arranged as a row-major contiguous
-//! slice would be the elements of column one, interspersed by those of column two.
-//! This is the default behaviour when slicing into `ndarray` or `nalgebra` arrays.
-//!
+//! of slices to an axis. Insertion operations expect elements of **row-major**
+//! ordering. Operations accept either an array slice `&[T]`, or an `ExactSizeIterator`
+//! of `&T` elements for `_iter` suffixed methods.
 //! ```
 //! # use n_circular_array::CircularArrayVec;
 //! # use n_circular_array::CircularArrayMut;
@@ -94,6 +92,16 @@
 //!     2,  9, 10,
 //!     5, 11, 12,
 //!     8, 13, 99
+//! ]);
+//!
+//! // Push two rows of zero to the front of axis 1.
+//! let axis_len = array.shape()[1];
+//! array.push_front_iter(1, std::iter::repeat(&0).take(2 * axis_len));
+//!
+//! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
+//!     8, 13, 99,
+//!     0,  0,  0,
+//!     0,  0,  0,
 //! ]);
 //! ```
 //! See `[CircularArrayMut]`.
@@ -132,7 +140,7 @@
 //!     15, 16, 17
 //! ]);
 //!
-//! // Elements of all columns, for the third row (index 2), of the second slice (index 1 of axis 2).
+//! // All columns of row 2, slice 1.
 //! assert_eq!(array.iter_slice([0..3, 2..3, 1..2]).cloned().collect::<Vec<_>>(), &[
 //!     15, 16, 17
 //! ]);
@@ -174,8 +182,10 @@
 //! assert_eq!(array.offset(), &[1, 0, 0]);
 //!
 //! // Iterate over index 1 of axis 2 into a 2-dimensional array of shape [3, 3].
-//! let iter = array.iter_slice([0..3, 0..3, 1..2]).cloned();
-//! let array_2 = CircularArrayVec::from_iter([3, 3], iter);
+//! let iter = array.iter_slice([0..3, 0..3, 1..2]);
+//! // Operations return `ExactSizeIterator` implementations.
+//! assert_eq!(iter.len(), 9);
+//! let array_2 = CircularArrayVec::from_iter([3, 3], iter.cloned());
 //!
 //! assert_eq!(array_2.iter().cloned().collect::<Vec<_>>(), &[
 //!     10, 11, 12,
@@ -187,24 +197,29 @@
 //!
 //! # Performance
 //!
-//! The inner dimensions of any `n > 1` array are impacted the most by cache locality
-//! (or a lack thereof). Wrapping contigous slices over the bounds of an axis reduces
-//! cache locality. Where possible, an array should be oriented in which the majority
-//! of operations are performed on the outermost dimension(s). `n_circular_array`
-//! will take contiguous slices of memory where possible which can result in operations
-//! being reduced to a single iteration over a contiguous slice, or a single call to
+//! Wrapping contigous slices over the bounds of an axis reduces cache locality,
+//! especially for the innermost dimensions of any `n > 1` array. Where possible,
+//! an array should be oriented where the majority of operations are performed on the
+//! outermost dimension(s). This will allow `n_circular_array` to take contiguous
+//! slices of memory where possible, which can result in operations being reduced to
+//! as little as a single iteration over a contiguous slice, or a single call to
 //! `copy_from_slice` during mutation.
 //!
 //! External types implementing `AsRef<[T]>` and `AsMut<[T]>` may also improve performance
 //! over `Vec<T>` or `Box<T>`. If necessary, `AsRef<[T]>` and `AsMut<[T]>` can be delegated
 //! to `unsafe` methods, although this is discouraged.
+//!
+//! Finally, for smaller arrays, avoiding a circular array and simply copying (or cloning)
+//! an array window may outperform `n_circular_array`. Benchmark if unsure whether
+//! your use case benefits from `n_circular_array`.
 mod array;
+mod array_iter;
 
 #[macro_use]
 mod assertions;
 
 mod array_index;
-mod array_mut;
+mod array_slice_mut;
 
 mod index;
 mod index_bounds;
@@ -214,4 +229,4 @@ mod strides;
 
 pub use array::{CircularArray, CircularArrayBox, CircularArrayVec};
 pub use array_index::{CircularArrayIndex, CircularArrayIndexMut};
-pub use array_mut::CircularArrayMut;
+pub use array_slice_mut::CircularArrayMut;

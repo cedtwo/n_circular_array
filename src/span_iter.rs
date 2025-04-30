@@ -10,7 +10,7 @@ use crate::strides::Strides;
 /// `CircularArray` index span iterator. Derives indices from the Cartesian product
 /// of `IndexBounds` sets  within. Returns contiguous sequences of indices where
 /// possible, starting at indices defined within the `Span`s provided.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct SpanIterator<const D: usize>([IndexBounds; D]);
 
 impl<const D: usize> SpanIterator<D> {
@@ -107,21 +107,29 @@ impl<const D: usize> Iterator for SpanIterator<D> {
 pub(crate) trait RawIndexAdaptor<'a, const N: usize> {
     /// Flatten `RawIndexSpan` types into `usize` elements.
     #[allow(dead_code)]
-    fn into_indices(self, strides: &'a Strides<N>) -> impl Iterator<Item = usize> + 'a;
+    fn into_indices(self, strides: &'a Strides<N>) -> impl Iterator<Item = usize> + Clone + 'a;
 
     /// Type conversion from `RawIndexSpan` into slice `Range<usize>` types.
-    fn into_ranges(self, strides: &'a Strides<N>) -> impl Iterator<Item = Range<usize>> + 'a;
+    fn into_ranges(
+        self,
+        strides: &'a Strides<N>,
+    ) -> impl Iterator<Item = Range<usize>> + Clone + 'a;
 }
 
-impl<'a, const N: usize, T: Iterator<Item = RawIndexSpan<N>> + 'a> RawIndexAdaptor<'a, N> for T {
-    fn into_indices(self, strides: &'a Strides<N>) -> impl Iterator<Item = usize> + 'a {
+impl<'a, const N: usize, T: Iterator<Item = RawIndexSpan<N>> + Clone + 'a> RawIndexAdaptor<'a, N>
+    for T
+{
+    fn into_indices(self, strides: &'a Strides<N>) -> impl Iterator<Item = usize> + Clone + 'a {
         self.flat_map(|span| {
             let (start, end) = span.split_bounds();
             strides.apply_to_index(*start)..strides.apply_to_index(*end) + 1
         })
     }
 
-    fn into_ranges(self, strides: &'a Strides<N>) -> impl Iterator<Item = Range<usize>> + 'a {
+    fn into_ranges(
+        self,
+        strides: &'a Strides<N>,
+    ) -> impl Iterator<Item = Range<usize>> + Clone + 'a {
         self.map(|span| {
             let (start, end) = span.split_bounds();
             strides.apply_to_index(*start)..strides.apply_to_index(*end) + 1

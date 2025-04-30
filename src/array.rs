@@ -55,6 +55,11 @@ where
         &self.offset
     }
 
+    /// Get the number of elements in the array.
+    pub fn len(&self) -> usize {
+        self.shape.iter().product()
+    }
+
     /// Get the number of elements for a single slice of the array, for the given
     /// `axis`. Pushing `n` slices of elements onto an axis requires `n * slice_len`
     /// elements to be passed to the respective method.

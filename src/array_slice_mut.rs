@@ -3,7 +3,7 @@ use crate::span_iter::{RawIndexAdaptor, SpanIterator};
 use crate::CircularArray;
 
 /// Mutating `CircularArray` operations.
-pub trait CircularArrayMut<const N: usize, T, El> {
+pub trait CircularArrayMut<'a, const N: usize, T: 'a> {
     /// Push elements to the front of the given `axis`, taking into account the
     /// offsets of **all** axes. Elements must be an exact multiple of the slice
     /// size for the given `axis`. See [`CircularArray::slice_len`].
@@ -22,7 +22,30 @@ pub trait CircularArrayMut<const N: usize, T, El> {
     ///      6,  7,  8,
     /// ]);
     /// ```
-    fn push_front(&mut self, axis: usize, el: El);
+    fn push_front(&'a mut self, axis: usize, el: &'a [T]);
+
+    /// Push elements to the front of the given `axis`, taking into account the
+    /// offsets of **all** axes. Elements must be an exact multiple of the slice
+    /// size for the given `axis`. See [`CircularArray::slice_len`].
+    ///
+    /// # Example
+    /// ```
+    /// # use n_circular_array::{CircularArray, CircularArrayIndex, CircularArrayMut};
+    /// let offset = [1, 0];
+    /// let elements = [0, 1, 2, 3, 4, 5, 6, 7, 8].to_vec();
+    /// let mut array = CircularArray::new_offset([3, 3], elements, offset);
+    ///
+    /// array.push_front_iter(1, &[9, 10, 11]);
+    /// assert_eq!(array.iter_raw().cloned().collect::<Vec<_>>(), &[
+    ///     11,  9, 10,
+    ///      3,  4,  5,
+    ///      6,  7,  8,
+    /// ]);
+    /// ```
+    fn push_front_iter<'b, I>(&'a mut self, axis: usize, el: I)
+    where
+        I: IntoIterator<IntoIter: ExactSizeIterator, Item = &'b T>,
+        T: 'b;
 
     /// Push elements to the front of the given `axis`, taking into account only
     /// the offset of the given `axis`. Elements must be an exact multiple of
@@ -42,7 +65,30 @@ pub trait CircularArrayMut<const N: usize, T, El> {
     ///     6,  7,  8,
     /// ]);
     /// ```
-    fn push_front_raw(&mut self, axis: usize, el: El);
+    fn push_front_raw(&'a mut self, axis: usize, el: &'a [T]);
+
+    /// Push elements to the front of the given `axis`, taking into account the
+    /// offsets of **all** axes. Elements must be an exact multiple of the slice
+    /// size for the given `axis`. See [`CircularArray::slice_len`].
+    ///
+    /// # Example
+    /// ```
+    /// # use n_circular_array::{CircularArray, CircularArrayIndex, CircularArrayMut};
+    /// let offset = [1, 0];
+    /// let elements = [0, 1, 2, 3, 4, 5, 6, 7, 8].to_vec();
+    /// let mut array = CircularArray::new_offset([3, 3], elements, offset);
+    ///
+    /// array.push_front_raw_iter(1, &[9, 10, 11]);
+    /// assert_eq!(array.iter_raw().cloned().collect::<Vec<_>>(), &[
+    ///     9, 10, 11,
+    ///     3,  4,  5,
+    ///     6,  7,  8,
+    /// ]);
+    /// ```
+    fn push_front_raw_iter<'b, I>(&'a mut self, axis: usize, el: I)
+    where
+        I: IntoIterator<IntoIter: ExactSizeIterator, Item = &'b T>,
+        T: 'b;
 
     /// Push elements to the back of the given `axis`, taking into account the
     /// offsets of **all** exes. Elements must be an exact multiple of the slice
@@ -62,7 +108,30 @@ pub trait CircularArrayMut<const N: usize, T, El> {
     ///     11,  9, 10,
     /// ]);
     /// ```
-    fn push_back(&mut self, axis: usize, el: El);
+    fn push_back(&'a mut self, axis: usize, el: &'a [T]);
+
+    /// Push elements to the back of the given `axis`, taking into account the
+    /// offsets of **all** exes. Elements must be an exact multiple of the slice
+    /// size for the given `axis`. See [`CircularArray::slice_len`].
+    ///
+    /// # Example
+    /// ```
+    /// # use n_circular_array::{CircularArray, CircularArrayIndex, CircularArrayMut};
+    /// let offset = [1, 0];
+    /// let elements = [0, 1, 2, 3, 4, 5, 6, 7, 8].to_vec();
+    /// let mut array = CircularArray::new_offset([3, 3], elements, offset);
+    ///
+    /// array.push_back_iter(1, &[9, 10, 11]);
+    /// assert_eq!(array.iter_raw().cloned().collect::<Vec<_>>(), &[
+    ///      0,  1,  2,
+    ///      3,  4,  5,
+    ///     11,  9, 10,
+    /// ]);
+    /// ```
+    fn push_back_iter<'b, I>(&'a mut self, axis: usize, el: I)
+    where
+        I: IntoIterator<IntoIter: ExactSizeIterator, Item = &'b T>,
+        T: 'b;
 
     /// Push elements to the back of the given `axis`, taking into account the
     /// offsets of **all** axes. Elements must be an exact multiple of the slice
@@ -82,7 +151,30 @@ pub trait CircularArrayMut<const N: usize, T, El> {
     ///     9, 10, 11,
     /// ]);
     /// ```
-    fn push_back_raw(&mut self, axis: usize, el: El);
+    fn push_back_raw(&'a mut self, axis: usize, el: &'a [T]);
+
+    /// Push elements to the back of the given `axis`, taking into account the
+    /// offsets of **all** axes. Elements must be an exact multiple of the slice
+    /// size for the given `axis`. See [`CircularArray::slice_len`].
+    ///
+    /// # Example
+    /// ```
+    /// # use n_circular_array::{CircularArray, CircularArrayIndex, CircularArrayMut};
+    /// let offset = [1, 0];
+    /// let elements = [0, 1, 2, 3, 4, 5, 6, 7, 8].to_vec();
+    /// let mut array = CircularArray::new_offset([3, 3], elements, offset);
+    ///
+    /// array.push_back_raw_iter(1, &[9, 10, 11]);
+    /// assert_eq!(array.iter_raw().cloned().collect::<Vec<_>>(), &[
+    ///     0,  1,  2,
+    ///     3,  4,  5,
+    ///     9, 10, 11,
+    /// ]);
+    /// ```
+    fn push_back_raw_iter<'b, I>(&'a mut self, axis: usize, el: I)
+    where
+        I: IntoIterator<IntoIter: ExactSizeIterator, Item = &'b T>,
+        T: 'b;
 }
 
 impl<const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArray<N, A, T> {
@@ -98,6 +190,22 @@ impl<const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArray<N, A, T
         }
     }
 
+    /// Push the given iterator of elements into the ranges defined by the given `spans`.
+    fn push_iter<'a>(&mut self, spans: [BoundSpan; N], mut el: impl Iterator<Item = &'a T>)
+    where
+        T: 'a,
+    {
+        let iter = SpanIterator::new(spans).into_ranges(&self.strides);
+
+        for slice_range in iter {
+            let len = slice_range.len();
+            self.array.as_mut()[slice_range]
+                .iter_mut()
+                .zip((&mut el).take(len))
+                .for_each(|(a, b)| *a = b.clone());
+        }
+    }
+
     /// Increment the offset by `n` on the given `axis`.
     fn incr_offset(&mut self, axis: usize, n: usize) {
         self.offset[axis] = (self.offset[axis] + n) % self.shape()[axis];
@@ -109,10 +217,10 @@ impl<const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArray<N, A, T
     }
 }
 
-impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArrayMut<N, T, &'a [T]>
+impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone + 'a> CircularArrayMut<'a, N, T>
     for CircularArray<N, A, T>
 {
-    fn push_front(&mut self, axis: usize, el: &'a [T]) {
+    fn push_front(&'a mut self, axis: usize, el: &'a [T]) {
         let el_len = el.len();
         let slice_len = self.slice_len(axis);
         let n = el_len / slice_len;
@@ -135,7 +243,28 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArrayMut<
         }
     }
 
-    fn push_front_raw(&mut self, axis: usize, el: &'a [T]) {
+    fn push_front_iter<'b, I>(&mut self, axis: usize, el: I)
+    where
+        I: IntoIterator<IntoIter: ExactSizeIterator, Item = &'b T>,
+        T: 'b,
+    {
+        let iter = el.into_iter();
+        let el_len = iter.len();
+        let slice_len = self.slice_len(axis);
+        let n = el_len / slice_len;
+
+        assert_element_len!(axis, el_len, slice_len);
+        assert_slice_len!(self, axis, n);
+
+        if n != 0 {
+            let spans = self.spans_axis_bound(axis, BoundSpan::new(0, n, self.shape[axis]));
+
+            self.push_iter(spans, iter);
+            self.incr_offset(axis, n);
+        }
+    }
+
+    fn push_front_raw(&'a mut self, axis: usize, el: &'a [T]) {
         let el_len = el.len();
         let slice_len = self.slice_len(axis);
         let n = el_len / slice_len;
@@ -158,7 +287,28 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArrayMut<
         }
     }
 
-    fn push_back(&mut self, axis: usize, el: &'a [T]) {
+    fn push_front_raw_iter<'b, I>(&mut self, axis: usize, el: I)
+    where
+        I: IntoIterator<IntoIter: ExactSizeIterator, Item = &'b T>,
+        T: 'b,
+    {
+        let iter = el.into_iter();
+        let el_len = iter.len();
+        let slice_len = self.slice_len(axis);
+        let n = el_len / slice_len;
+
+        assert_element_len!(axis, el_len, slice_len);
+        assert_slice_len!(self, axis, n);
+
+        if n != 0 {
+            let spans = self.spans_axis_bound_raw(axis, BoundSpan::new(0, n, self.shape[axis]));
+
+            self.push_iter(spans, iter);
+            self.incr_offset(axis, n);
+        }
+    }
+
+    fn push_back(&'a mut self, axis: usize, el: &'a [T]) {
         let el_len = el.len();
         let slice_len = self.slice_len(axis);
         let n = el_len / slice_len;
@@ -186,7 +336,33 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArrayMut<
         }
     }
 
-    fn push_back_raw(&mut self, axis: usize, el: &'a [T]) {
+    fn push_back_iter<'b, I>(&mut self, axis: usize, el: I)
+    where
+        I: IntoIterator<IntoIter: ExactSizeIterator, Item = &'b T>,
+        T: 'b,
+    {
+        let iter = el.into_iter();
+        let el_len = iter.len();
+        let slice_len = self.slice_len(axis);
+        let n = el_len / slice_len;
+
+        assert_element_len!(axis, el_len, slice_len);
+        assert_slice_len!(self, axis, n);
+
+        if n != 0 {
+            let span = BoundSpan::new(
+                (self.shape[axis] - n) % self.shape[axis],
+                n,
+                self.shape[axis],
+            );
+            let spans = self.spans_axis_bound(axis, span);
+
+            self.push_iter(spans, iter);
+            self.decr_offset(axis, n);
+        }
+    }
+
+    fn push_back_raw(&'a mut self, axis: usize, el: &'a [T]) {
         let el_len = el.len();
         let slice_len = self.slice_len(axis);
         let n = el_len / slice_len;
@@ -211,6 +387,32 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArrayMut<
                 self.push(spans, el);
                 self.decr_offset(axis, n);
             }
+        }
+    }
+
+    fn push_back_raw_iter<'b, I>(&mut self, axis: usize, el: I)
+    where
+        I: IntoIterator<IntoIter: ExactSizeIterator, Item = &'b T>,
+        T: 'b,
+    {
+        let iter = el.into_iter();
+        let el_len = iter.len();
+        let slice_len = self.slice_len(axis);
+        let n = el_len / slice_len;
+
+        assert_element_len!(axis, el_len, slice_len);
+        assert_slice_len!(self, axis, n);
+
+        if n != 0 {
+            let span = BoundSpan::new(
+                (self.shape[axis] - n) % self.shape[axis],
+                n,
+                self.shape[axis],
+            );
+            let spans = self.spans_axis_bound_raw(axis, span);
+
+            self.push_iter(spans, iter);
+            self.decr_offset(axis, n);
         }
     }
 }

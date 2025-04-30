@@ -1,6 +1,7 @@
 use std::array;
 use std::ops::{Index, IndexMut, Range};
 
+use crate::array_iter::CircularArrayIterator;
 use crate::span::BoundSpan;
 use crate::span_iter::{RawIndexAdaptor, SpanIterator};
 use crate::CircularArray;
@@ -8,26 +9,34 @@ use crate::CircularArray;
 /// Operations for retrieving elements from the array.
 pub trait CircularArrayIndex<'a, const N: usize, T: 'a> {
     /// Iterate over all elements of the inner array, aligned to the offset.
-    fn iter(&'a self) -> impl Iterator<Item = &'a T>;
+    fn iter(&'a self) -> impl ExactSizeIterator<Item = &'a T>;
 
     /// Iterate over all elements of the inner array.
-    fn iter_raw(&'a self) -> impl Iterator<Item = &'a T>;
+    fn iter_raw(&'a self) -> impl ExactSizeIterator<Item = &'a T>;
 
     /// Iterate over all elements of `index` for the given `axis` aligned to the offset.
-    fn iter_index(&'a self, axis: usize, index: usize) -> impl Iterator<Item = &'a T>;
+    fn iter_index(&'a self, axis: usize, index: usize) -> impl ExactSizeIterator<Item = &'a T>;
 
     /// Iterate over all elements of `index` for the given `axis`.
-    fn iter_index_raw(&'a self, axis: usize, index: usize) -> impl Iterator<Item = &'a T>;
+    fn iter_index_raw(&'a self, axis: usize, index: usize) -> impl ExactSizeIterator<Item = &'a T>;
 
     /// Iterate over all elements of the given index `range` for the given `axis`
     /// aligned to the offset.
-    fn iter_range(&'a self, axis: usize, range: Range<usize>) -> impl Iterator<Item = &'a T>;
+    fn iter_range(
+        &'a self,
+        axis: usize,
+        range: Range<usize>,
+    ) -> impl ExactSizeIterator<Item = &'a T>;
 
     /// Iterate over all elements of the given index `range` for the given `axis`.
-    fn iter_range_raw(&'a self, axis: usize, range: Range<usize>) -> impl Iterator<Item = &'a T>;
+    fn iter_range_raw(
+        &'a self,
+        axis: usize,
+        range: Range<usize>,
+    ) -> impl ExactSizeIterator<Item = &'a T>;
 
     /// Iterate over all elements of the given index `slice`.
-    fn iter_slice(&'a self, slice: [Range<usize>; N]) -> impl Iterator<Item = &'a T>;
+    fn iter_slice(&'a self, slice: [Range<usize>; N]) -> impl ExactSizeIterator<Item = &'a T>;
 
     /// Get a reference to the element at the given index, aligned to the offset.
     fn get(&'a self, index: [usize; N]) -> &'a T;
@@ -85,50 +94,83 @@ impl<const N: usize, A, T> CircularArray<N, A, T> {
 impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
     for CircularArray<N, A, T>
 {
-    fn iter(&'a self) -> impl Iterator<Item = &'a T> {
-        SpanIterator::new(self.spans())
+    fn iter(&'a self) -> impl ExactSizeIterator<Item = &'a T> {
+        let iter = SpanIterator::new(self.spans())
             .into_ranges(&self.strides)
-            .flat_map(|range| &self.array.as_ref()[range])
+            .flat_map(|range| &self.array.as_ref()[range]);
+
+        CircularArrayIterator::new(iter, self.len())
     }
 
-    fn iter_raw(&'a self) -> impl Iterator<Item = &'a T> {
-        self.array.as_ref().iter()
+    fn iter_raw(&'a self) -> impl ExactSizeIterator<Item = &'a T> {
+        let iter = self.array.as_ref().iter();
+
+        CircularArrayIterator::new(iter, self.len())
     }
 
-    fn iter_index(&'a self, axis: usize, index: usize) -> impl Iterator<Item = &'a T> {
+    fn iter_index(&'a self, axis: usize, index: usize) -> impl ExactSizeIterator<Item = &'a T> {
         assert_shape_index!(axis, N);
         assert_slice_index!(self, axis, index);
 
-        SpanIterator::new(self.spans_axis_bound(axis, BoundSpan::new(index, 1, self.shape[axis])))
-            .into_ranges(&self.strides)
-            .flat_map(|range| &self.array.as_ref()[range])
+        let iter = SpanIterator::new(
+            self.spans_axis_bound(axis, BoundSpan::new(index, 1, self.shape[axis])),
+        )
+        .into_ranges(&self.strides)
+        .flat_map(|range| &self.array.as_ref()[range]);
+
+        CircularArrayIterator::new(iter, self.slice_len(axis))
     }
 
-    fn iter_range(&'a self, axis: usize, range: Range<usize>) -> impl Iterator<Item = &'a T> {
+    fn iter_index_raw(&'a self, axis: usize, index: usize) -> impl ExactSizeIterator<Item = &'a T> {
+        assert_shape_index!(axis, N);
+        assert_slice_index!(self, axis, index);
+
+        let iter = SpanIterator::new(
+            self.spans_axis_bound_raw(axis, BoundSpan::new(index, 1, self.shape[axis])),
+        )
+        .into_ranges(&self.strides)
+        .flat_map(|range| &self.array.as_ref()[range]);
+
+        CircularArrayIterator::new(iter, self.slice_len(axis))
+    }
+
+    fn iter_range(
+        &'a self,
+        axis: usize,
+        range: Range<usize>,
+    ) -> impl ExactSizeIterator<Item = &'a T> {
         assert_shape_index!(axis, N);
         assert_slice_range!(self, axis, range);
 
-        SpanIterator::new(self.spans_axis_bound(
+        let iter = SpanIterator::new(self.spans_axis_bound(
             axis,
             BoundSpan::new(range.start, range.len(), self.shape[axis]),
         ))
         .into_ranges(&self.strides)
-        .flat_map(|range| &self.array.as_ref()[range])
+        .flat_map(|range| &self.array.as_ref()[range]);
+
+        CircularArrayIterator::new(iter, range.len() * self.slice_len(axis))
     }
 
-    fn iter_range_raw(&'a self, axis: usize, range: Range<usize>) -> impl Iterator<Item = &'a T> {
+    fn iter_range_raw(
+        &'a self,
+        axis: usize,
+        range: Range<usize>,
+    ) -> impl ExactSizeIterator<Item = &'a T> {
         assert_shape_index!(axis, N);
         assert_slice_range!(self, axis, range);
 
-        SpanIterator::new(self.spans_axis_bound_raw(
+        let iter = SpanIterator::new(self.spans_axis_bound_raw(
             axis,
             BoundSpan::new(range.start, range.len(), self.shape[axis]),
         ))
         .into_ranges(&self.strides)
-        .flat_map(|range| &self.array.as_ref()[range])
+        .flat_map(|range| &self.array.as_ref()[range]);
+
+        CircularArrayIterator::new(iter, range.len() * self.slice_len(axis))
     }
 
-    fn iter_slice(&'a self, slice: [Range<usize>; N]) -> impl Iterator<Item = &'a T> {
+    fn iter_slice(&'a self, slice: [Range<usize>; N]) -> impl ExactSizeIterator<Item = &'a T> {
         let spans = array::from_fn(|i| {
             let range = &slice[i];
             assert_slice_range!(self, i, range);
@@ -140,20 +182,12 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
             ) % self.shape[i]
         });
 
-        SpanIterator::new(spans)
+        let iter = SpanIterator::new(spans)
             .into_ranges(&self.strides)
-            .flat_map(|range| &self.array.as_ref()[range])
-    }
+            .flat_map(|range| &self.array.as_ref()[range]);
+        let len = spans.iter().map(|spans| spans.len()).product();
 
-    fn iter_index_raw(&'a self, axis: usize, index: usize) -> impl Iterator<Item = &'a T> {
-        assert_shape_index!(axis, N);
-        assert_slice_index!(self, axis, index);
-
-        SpanIterator::new(
-            self.spans_axis_bound_raw(axis, BoundSpan::new(index, 1, self.shape[axis])),
-        )
-        .into_ranges(&self.strides)
-        .flat_map(|range| &self.array.as_ref()[range])
+        CircularArrayIterator::new(iter, len)
     }
 
     fn get(&'a self, mut index: [usize; N]) -> &'a T {
@@ -229,6 +263,7 @@ mod tests {
              7,  8,  6, 
              1,  2,  0
         ]);
+        assert_eq!(m.iter().len(), 27);
     }
 
     #[test]
@@ -240,6 +275,7 @@ mod tests {
             m.iter_raw().cloned().collect::<Vec<_>>(),
             (0..3 * 3 * 3).collect::<Vec<_>>()
         );
+        assert_eq!(m.iter().len(), 27);
     }
 
     #[test]
@@ -252,22 +288,26 @@ mod tests {
             m.iter_index(0, 1).cloned().collect::<Vec<_>>(),
             [2, 5, 8, 11, 14, 17, 20, 23, 26]
         );
+        assert_eq!(m.iter_index(0, 1).len(), 9);
         m.offset = [0, 1, 0];
         assert_eq!(
             m.iter_index(1, 1).cloned().collect::<Vec<_>>(),
             [6, 7, 8, 15, 16, 17, 24, 25, 26]
         );
+        assert_eq!(m.iter_index(1, 1).len(), 9);
         m.offset = [0, 0, 1];
         assert_eq!(
             m.iter_index(2, 1).cloned().collect::<Vec<_>>(),
             [18, 19, 20, 21, 22, 23, 24, 25, 26]
         );
+        assert_eq!(m.iter_index(2, 1).len(), 9);
         m.offset = [1, 1, 1];
         #[rustfmt::skip]
         assert_eq!(
             m.iter_index(0, 0).cloned().collect::<Vec<_>>(),
             [13, 16, 10, 22, 25, 19, 4, 7, 1]
         );
+        assert_eq!(m.iter_index(0, 0).len(), 9);
     }
 
     #[test]
@@ -280,16 +320,19 @@ mod tests {
             m.iter_range(0, 0..2).cloned().collect::<Vec<_>>(),
             [1, 2, 4, 5, 7, 8, 10, 11, 13, 14, 16, 17, 19, 20, 22, 23, 25, 26]
         );
+        assert_eq!(m.iter_range(0, 0..2).len(), 18);
         m.offset = [0, 1, 0];
         assert_eq!(
             m.iter_range(1, 1..3).cloned().collect::<Vec<_>>(),
             [6, 7, 8, 0, 1, 2, 15, 16, 17, 9, 10, 11, 24, 25, 26, 18, 19, 20]
         );
+        assert_eq!(m.iter_range(1, 1..3).len(), 18);
         m.offset = [0, 0, 1];
         assert_eq!(
             m.iter_range(2, 1..2).cloned().collect::<Vec<_>>(),
             [18, 19, 20, 21, 22, 23, 24, 25, 26]
         );
+        assert_eq!(m.iter_range(2, 1..2).len(), 9);
         m.offset = [1, 1, 1];
         #[rustfmt::skip]
         assert_eq!(m.iter_range(0, 1..4).cloned().collect::<Vec<_>>(), [
@@ -305,6 +348,7 @@ mod tests {
                  8,  6,  7,
                  2,  0,  1
             ]);
+        assert_eq!(m.iter_range(0, 1..4).len(), 27);
     }
 
     #[test]
@@ -317,16 +361,19 @@ mod tests {
             m.iter_range_raw(0, 0..2).cloned().collect::<Vec<_>>(),
             [0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21, 22, 24, 25]
         );
+        assert_eq!(m.iter_range_raw(0, 0..2).len(), 18);
         m.offset = [0, 1, 0];
         assert_eq!(
             m.iter_range_raw(1, 1..3).cloned().collect::<Vec<_>>(),
             [3, 4, 5, 6, 7, 8, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 25, 26]
         );
+        assert_eq!(m.iter_range_raw(1, 1..3).len(), 18);
         m.offset = [0, 0, 1];
         assert_eq!(
             m.iter_range_raw(2, 1..2).cloned().collect::<Vec<_>>(),
             [9, 10, 11, 12, 13, 14, 15, 16, 17]
         );
+        assert_eq!(m.iter_range_raw(2, 1..2).len(), 9);
         m.offset = [1, 1, 1];
         #[rustfmt::skip]
         assert_eq!(m.iter_range_raw(0, 1..3).cloned().collect::<Vec<_>>(), [
@@ -342,6 +389,7 @@ mod tests {
             22, 23,
             25, 26            
             ]);
+        assert_eq!(m.iter_range_raw(0, 1..3).len(), 18);
     }
 
     #[test]
@@ -351,23 +399,27 @@ mod tests {
 
         #[rustfmt::skip]
         assert_eq!(m.iter_slice([0..1, 0..1, 0..1]).cloned().collect::<Vec<_>>(), &[13]);
+        assert_eq!(m.iter_slice([0..1, 0..1, 0..1]).len(), 1);
         #[rustfmt::skip]
         assert_eq!(m.iter_slice([0..3, 0..3, 1..2]).cloned().collect::<Vec<_>>(), &[
             22, 23, 21,
             25, 26, 24,
             19, 20, 18
         ]);
+        assert_eq!(m.iter_slice([0..3, 0..3, 1..2]).len(), 9);
 
         m.offset = [2, 2, 2];
 
         #[rustfmt::skip]
         assert_eq!(m.iter_slice([0..1, 0..1, 0..1]).cloned().collect::<Vec<_>>(), &[26]);
+        assert_eq!(m.iter_slice([0..1, 0..1, 0..1]).len(), 1);
         #[rustfmt::skip]
         assert_eq!(m.iter_slice([0..3, 0..3, 1..2]).cloned().collect::<Vec<_>>(), &[
             8, 6, 7,
             2, 0, 1,
             5, 3, 4
         ]);
+        assert_eq!(m.iter_slice([0..3, 0..3, 1..2]).len(), 9);
     }
 
     #[test]
