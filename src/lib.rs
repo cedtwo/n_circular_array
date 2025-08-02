@@ -219,7 +219,7 @@ mod array_iter;
 mod assertions;
 
 mod array_index;
-mod array_slice_mut;
+mod array_mut;
 
 mod index;
 mod index_bounds;
@@ -229,4 +229,4 @@ mod strides;
 
 pub use array::{CircularArray, CircularArrayBox, CircularArrayVec};
 pub use array_index::{CircularArrayIndex, CircularArrayIndexMut};
-pub use array_slice_mut::CircularArrayMut;
+pub use array_mut::CircularArrayMut;
