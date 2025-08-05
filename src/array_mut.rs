@@ -1,5 +1,6 @@
-use crate::span::BoundSpan;
-use crate::span_iter::{RawIndexAdaptor, SpanIterator};
+use crate::index_iter::IndexIterator;
+use crate::span::{BoundSpan, UnboundSpan};
+use crate::index::RawIndexAdaptor;
 use crate::CircularArray;
 
 /// Mutating `CircularArray` operations.
@@ -180,8 +181,8 @@ pub trait CircularArrayMut<'a, const N: usize, T: 'a> {
 impl<const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArray<N, A, T> {
     /// Push the given elements into the ranges defined by the given `spans`. Promotes
     /// cache locality for the input elements.
-    fn push(&mut self, spans: [BoundSpan; N], mut el: &[T]) {
-        let iter = SpanIterator::new(spans).into_ranges(&self.strides);
+    fn push<'a>(&'a mut self, spans: impl RawIndexAdaptor<'a, N>, mut el: &[T]) {
+        let iter = spans.into_ranges(&self.strides);
 
         for slice_range in iter {
             let len = slice_range.len();
@@ -191,11 +192,14 @@ impl<const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone> CircularArray<N, A, T
     }
 
     /// Push the given iterator of elements into the ranges defined by the given `spans`.
-    fn push_iter<'a>(&mut self, spans: [BoundSpan; N], mut el: impl Iterator<Item = &'a T>)
-    where
-        T: 'a,
+    fn push_iter<'a, 'b>(
+        &'a mut self,
+        spans: impl RawIndexAdaptor<'a, N>,
+        mut el: impl Iterator<Item = &'b T>,
+    ) where
+        T: 'b,
     {
-        let iter = SpanIterator::new(spans).into_ranges(&self.strides);
+        let iter = spans.into_ranges(&self.strides);
 
         for slice_range in iter {
             let len = slice_range.len();
@@ -237,7 +241,7 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone + 'a> CircularArra
             } else {
                 let spans = self.spans_axis_bound(axis, BoundSpan::new(0, n, self.shape[axis]));
 
-                self.push(spans, el);
+                self.push(IndexIterator::new_bound(spans), el);
                 self.incr_offset(axis, n);
             }
         }
@@ -259,7 +263,7 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone + 'a> CircularArra
         if n != 0 {
             let spans = self.spans_axis_bound(axis, BoundSpan::new(0, n, self.shape[axis]));
 
-            self.push_iter(spans, iter);
+            self.push_iter(IndexIterator::new_bound(spans), iter);
             self.incr_offset(axis, n);
         }
     }
@@ -279,9 +283,9 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone + 'a> CircularArra
                 self.offset = [0; N];
             // Copy/Clone into slices, and increment offset.
             } else {
-                let spans = self.spans_axis_bound_raw(axis, BoundSpan::new(0, n, self.shape[axis]));
+                let spans = self.spans_axis_bound_raw(axis, UnboundSpan::from_len(0, n));
 
-                self.push(spans, el);
+                self.push(IndexIterator::new_unbound(spans), el);
                 self.incr_offset(axis, n);
             }
         }
@@ -301,9 +305,9 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone + 'a> CircularArra
         assert_slice_len!(self, axis, n);
 
         if n != 0 {
-            let spans = self.spans_axis_bound_raw(axis, BoundSpan::new(0, n, self.shape[axis]));
+            let spans = self.spans_axis_bound_raw(axis, UnboundSpan::from_len(0, n));
 
-            self.push_iter(spans, iter);
+            self.push_iter(IndexIterator::new_unbound(spans), iter);
             self.incr_offset(axis, n);
         }
     }
@@ -330,7 +334,7 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone + 'a> CircularArra
                 );
                 let spans = self.spans_axis_bound(axis, span);
 
-                self.push(spans, el);
+                self.push(IndexIterator::new_bound(spans), el);
                 self.decr_offset(axis, n);
             }
         }
@@ -357,7 +361,7 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone + 'a> CircularArra
             );
             let spans = self.spans_axis_bound(axis, span);
 
-            self.push_iter(spans, iter);
+            self.push_iter(IndexIterator::new_bound(spans), iter);
             self.decr_offset(axis, n);
         }
     }
@@ -377,14 +381,13 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone + 'a> CircularArra
                 self.offset = [0; N];
             // Copy/Clone into slices, and increment offset.
             } else {
-                let span = BoundSpan::new(
+                let span = UnboundSpan::from_len(
                     (self.shape[axis] - n) % self.shape[axis],
                     n,
-                    self.shape[axis],
                 );
                 let spans = self.spans_axis_bound_raw(axis, span);
 
-                self.push(spans, el);
+                self.push(IndexIterator::new_unbound(spans), el);
                 self.decr_offset(axis, n);
             }
         }
@@ -404,14 +407,13 @@ impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: Clone + 'a> CircularArra
         assert_slice_len!(self, axis, n);
 
         if n != 0 {
-            let span = BoundSpan::new(
+            let span = UnboundSpan::from_len(
                 (self.shape[axis] - n) % self.shape[axis],
                 n,
-                self.shape[axis],
             );
             let spans = self.spans_axis_bound_raw(axis, span);
 
-            self.push_iter(spans, iter);
+            self.push_iter(IndexIterator::new_unbound(spans), iter);
             self.decr_offset(axis, n);
         }
     }
@@ -422,7 +424,6 @@ mod tests {
 
     use super::*;
     use crate::array_index::CircularArrayIndex;
-    use crate::span_iter::RawIndexAdaptor;
     use crate::CircularArrayVec;
 
     macro_rules! push_front {
@@ -434,7 +435,7 @@ mod tests {
             let n = $payload.len() / $m.slice_len($axis);
             $m.push_front($axis, $payload);
 
-            let slice = SpanIterator::new($m.spans_axis_bound(
+            let slice = IndexIterator::new_bound($m.spans_axis_bound(
                 $axis,
                 BoundSpan::new($m.shape()[$axis] - n, n, $m.shape()[$axis]),
             ))
@@ -546,7 +547,7 @@ mod tests {
             let n = $payload.len() / $m.slice_len($axis);
             $m.push_back($axis, $payload);
 
-            let slice = SpanIterator::new(
+            let slice = IndexIterator::new_bound(
                 $m.spans_axis_bound($axis, BoundSpan::new(0, n, $m.shape()[$axis])),
             )
             .into_indices(&$m.strides)

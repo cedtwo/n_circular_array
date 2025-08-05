@@ -212,19 +212,21 @@
 //! Finally, for smaller arrays, avoiding a circular array and simply copying (or cloning)
 //! an array window may outperform `n_circular_array`. Benchmark if unsure whether
 //! your use case benefits from `n_circular_array`.
-mod array;
-mod array_iter;
-
 #[macro_use]
 mod assertions;
+
+mod array;
+mod array_iter;
 
 mod array_index;
 mod array_mut;
 
 mod index;
-mod index_bounds;
+mod index_iter;
+
 mod span;
 mod span_iter;
+
 mod strides;
 
 pub use array::{CircularArray, CircularArrayBox, CircularArrayVec};

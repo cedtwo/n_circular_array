@@ -1,9 +1,10 @@
 use std::fmt::Debug;
-use std::ops::{Deref, DerefMut, Index, IndexMut};
+use std::ops::{Deref, DerefMut, Index, IndexMut, Range};
 
-use crate::span::Span;
+use crate::span::UnboundSpan;
+use crate::strides::Strides;
 
-/// A raw index type of `N` dimensions.
+/// A raw index of `N` dimensions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct RawIndex<const N: usize>([usize; N]);
 
@@ -43,7 +44,7 @@ impl<const N: usize> DerefMut for RawIndex<N> {
 
 /// A contiguous raw index span across `N` dimensions.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) struct RawIndexSpan<const N: usize>([Span; N]);
+pub(crate) struct RawIndexSpan<const N: usize>([UnboundSpan; N]);
 
 impl<const N: usize> Debug for RawIndexSpan<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -78,18 +79,18 @@ impl<const N: usize> PartialEq<([usize; N], [usize; N])> for RawIndexSpan<N> {
 
 impl<const N: usize> Default for RawIndexSpan<N> {
     fn default() -> Self {
-        RawIndexSpan([Span::default(); N])
+        RawIndexSpan([UnboundSpan::default(); N])
     }
 }
 
-impl<const D: usize> From<[Span; D]> for RawIndexSpan<D> {
-    fn from(span: [Span; D]) -> Self {
+impl<const D: usize> From<[UnboundSpan; D]> for RawIndexSpan<D> {
+    fn from(span: [UnboundSpan; D]) -> Self {
         RawIndexSpan(span)
     }
 }
 
 impl<const N: usize> Index<usize> for RawIndexSpan<N> {
-    type Output = Span;
+    type Output = UnboundSpan;
 
     fn index(&self, index: usize) -> &Self::Output {
         self.0.index(index)
@@ -103,7 +104,7 @@ impl<const N: usize> IndexMut<usize> for RawIndexSpan<N> {
 }
 
 impl<const N: usize> Deref for RawIndexSpan<N> {
-    type Target = [Span; N];
+    type Target = [UnboundSpan; N];
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -113,5 +114,39 @@ impl<const N: usize> Deref for RawIndexSpan<N> {
 impl<const N: usize> DerefMut for RawIndexSpan<N> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+/// Iterator adaptor for `RawIndexSpan` conversion.
+pub(crate) trait RawIndexAdaptor<'a, const N: usize> {
+    /// Flatten `RawIndexSpan` types into `usize` elements.
+    #[allow(dead_code)]
+    fn into_indices(self, strides: &'a Strides<N>) -> impl Iterator<Item = usize> + Clone + 'a;
+
+    /// Type conversion from `RawIndexSpan` into slice `Range<usize>` types.
+    fn into_ranges(
+        self,
+        strides: &'a Strides<N>,
+    ) -> impl Iterator<Item = Range<usize>> + Clone + 'a;
+}
+
+impl<'a, const N: usize, T: Iterator<Item = RawIndexSpan<N>> + Clone + 'a> RawIndexAdaptor<'a, N>
+    for T
+{
+    fn into_indices(self, strides: &'a Strides<N>) -> impl Iterator<Item = usize> + Clone + 'a {
+        self.flat_map(|span| {
+            let (start, end) = span.split_bounds();
+            strides.apply_to_index(*start)..strides.apply_to_index(*end) + 1
+        })
+    }
+
+    fn into_ranges(
+        self,
+        strides: &'a Strides<N>,
+    ) -> impl Iterator<Item = Range<usize>> + Clone + 'a {
+        self.map(|span| {
+            let (start, end) = span.split_bounds();
+            strides.apply_to_index(*start)..strides.apply_to_index(*end) + 1
+        })
     }
 }

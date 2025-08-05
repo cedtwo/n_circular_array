@@ -1,215 +1,287 @@
-use std::ops::Range;
-// use crate::axis_iter::AxisIterator;
-use std::{array, fmt::Debug};
+use crate::span::{BoundSpan, UnboundSpan};
 
-use crate::index::RawIndexSpan;
-use crate::index_bounds::IndexBounds;
-use crate::span::BoundSpan;
-use crate::strides::Strides;
+/// Defines iterators that produce axis indices from spans.
+pub(crate) trait SpanIterator: Iterator<Item = UnboundSpan> {
+    /// Returns the current iteration.
+    fn i(&self) -> usize;
 
-/// `CircularArray` index span iterator. Derives indices from the Cartesian product
-/// of `IndexBounds` sets  within. Returns contiguous sequences of indices where
-/// possible, starting at indices defined within the `Span`s provided.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct SpanIterator<const D: usize>([IndexBounds; D]);
+    /// Returns `true` if the span exhausts the axis.
+    fn exhaustive(&self) -> bool;
 
-impl<const D: usize> SpanIterator<D> {
-    /// Create a new iterator for the given axis `spans`, with iteration aligned
-    /// to the offset.
-    pub(crate) fn new(spans: [BoundSpan; D]) -> Self {
-        let mut cont = true;
+    /// Increment the iteration index.
+    fn incr(&mut self);
 
-        let bounds = spans.map(|span| {
-            let bounds = IndexBounds::new(span, false, cont);
-            cont = cont && bounds.exhaustive();
+    /// Returns `true` if iteration has finished.
+    fn is_finished(&self) -> bool;
 
-            bounds
-        });
+    /// Reset the iterator.
+    fn reset(&mut self);
 
-        SpanIterator(bounds)
-    }
-
-    /// Create a new iterator for the given axis `spans`, maintaining the contiguity
-    /// of the array.
-    #[allow(dead_code)]
-    pub(crate) fn new_contiguous(spans: [BoundSpan; D]) -> Self {
-        let mut cont = true;
-
-        let bounds = spans.map(|mut span| {
-            // Mutate spans into exhaustive spans, if possible.
-            if span.len() == span.bound() {
-                span = BoundSpan::new(0, span.bound(), span.bound());
-            }
-
-            let bounds = IndexBounds::new(span, true, cont);
-            cont = cont && bounds.exhaustive();
-
-            bounds
-        });
-
-        SpanIterator(bounds)
-    }
-
-    /// Get a reference to the inner `IndexBounds` array.
-    fn inner(&self) -> &[IndexBounds; D] {
-        &self.0
-    }
-
-    /// Get a mutable reference to the inner `IndexBounds` array.
-    fn inner_mut(&mut self) -> &mut [IndexBounds; D] {
-        &mut self.0
-    }
+    /// Get the span or index for the current iteration index.
+    fn get(&self) -> Option<<Self as Iterator>::Item>;
 }
 
-impl<const D: usize> Iterator for SpanIterator<D> {
-    type Item = RawIndexSpan<D>;
+/// [`UnboundSpan`] span iterator. Produces [`UnboundSpan`]s of **contiguous**
+/// elements during iteration.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct UnboundSpanIterator {
+    /// The span that will be iterated over.
+    span: UnboundSpan,
+    /// Iteration index.
+    i: usize,
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.inner().iter().all(|bounds| bounds.is_finished()) {
-            None
-        } else {
-            let mut finished = true;
+    /// Iterate over contiguous spans.
+    iter_span: bool,
+}
 
-            let span = array::from_fn(|i| {
-                let bounds = &mut self.inner_mut()[i];
-
-                let span = if finished {
-                    match bounds.next() {
-                        Some(bounds) => bounds,
-                        None => {
-                            bounds.reset();
-                            bounds.next().expect("No bounds returned from iterator")
-                        }
-                    }
-                // Continue or reset and continue iteration.
-                } else {
-                    // TODO: Should this ever be `None`?
-                    // Why would the iterator be exhausted prior to calling current?
-                    match bounds.get() {
-                        Some(bounds) => bounds,
-                        None => {
-                            bounds.reset();
-                            bounds.get().expect("No current bounds")
-                        }
-                    }
-                };
-
-                finished = finished && bounds.is_finished();
-                span
-            });
-
-            Some(span.into())
+impl UnboundSpanIterator {
+    /// Create a pair of `IndexBounds` a set, or sets of `Bounds`.
+    pub(crate) fn new(span: UnboundSpan, iter_span: bool) -> Self {
+        Self {
+            span,
+            i: 0,
+            iter_span,
         }
     }
 }
 
-/// Iterator adaptor for `RawIndexSpan` conversion.
-pub(crate) trait RawIndexAdaptor<'a, const N: usize> {
-    /// Flatten `RawIndexSpan` types into `usize` elements.
-    #[allow(dead_code)]
-    fn into_indices(self, strides: &'a Strides<N>) -> impl Iterator<Item = usize> + Clone + 'a;
-
-    /// Type conversion from `RawIndexSpan` into slice `Range<usize>` types.
-    fn into_ranges(
-        self,
-        strides: &'a Strides<N>,
-    ) -> impl Iterator<Item = Range<usize>> + Clone + 'a;
-}
-
-impl<'a, const N: usize, T: Iterator<Item = RawIndexSpan<N>> + Clone + 'a> RawIndexAdaptor<'a, N>
-    for T
-{
-    fn into_indices(self, strides: &'a Strides<N>) -> impl Iterator<Item = usize> + Clone + 'a {
-        self.flat_map(|span| {
-            let (start, end) = span.split_bounds();
-            strides.apply_to_index(*start)..strides.apply_to_index(*end) + 1
-        })
+impl SpanIterator for UnboundSpanIterator {
+    fn i(&self) -> usize {
+        self.i
     }
 
-    fn into_ranges(
-        self,
-        strides: &'a Strides<N>,
-    ) -> impl Iterator<Item = Range<usize>> + Clone + 'a {
-        self.map(|span| {
-            let (start, end) = span.split_bounds();
-            strides.apply_to_index(*start)..strides.apply_to_index(*end) + 1
-        })
+    fn exhaustive(&self) -> bool {
+        false
+    }
+
+    fn incr(&mut self) {
+        self.i += 1;
+    }
+
+    fn is_finished(&self) -> bool {
+        self.i() >= self.len()
+    }
+
+    fn reset(&mut self) {
+        self.i = 0;
+    }
+
+    fn get(&self) -> Option<<Self as Iterator>::Item> {
+        match self.iter_span {
+            true => {
+                if self.i == 0 {
+                    Some(self.span)
+                } else {
+                    None
+                }
+            }
+            false => self.span.get_index(self.i).map(|i| i.into()),
+        }
+    }
+}
+
+impl ExactSizeIterator for UnboundSpanIterator {
+    fn len(&self) -> usize {
+        if self.iter_span {
+            1
+        } else {
+            self.span.len()
+        }
+    }
+}
+
+impl Iterator for UnboundSpanIterator {
+    type Item = UnboundSpan;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let item = self.get();
+        self.incr();
+
+        item
+    }
+}
+
+/// [`BoundSpan`] span iterator. Produces [`UnboundSpan`]s of **contiguous**
+/// elements during iteration. In contrast to [`UnboundSpanIterator`], this may
+/// produce additional [`UnboundSpan`]s across axis bounds.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct BoundSpanIterator {
+    /// The span that will be iterated over.
+    bound_span: BoundSpan,
+    /// Iteration index.
+    i: usize,
+
+    /// Iterate over elements sequentially.
+    iter_seq: bool,
+    /// Iterate over contiguous spans.
+    iter_span: bool,
+}
+
+impl BoundSpanIterator {
+    /// Create a pair of `IndexBounds` a set, or sets of `Bounds`.
+    pub(crate) fn new(span: BoundSpan, iter_seq: bool, iter_span: bool) -> Self {
+        Self {
+            bound_span: span,
+            i: 0,
+            iter_seq,
+            iter_span,
+        }
+    }
+}
+
+impl SpanIterator for BoundSpanIterator {
+    fn i(&self) -> usize {
+        self.i
+    }
+
+    fn exhaustive(&self) -> bool {
+        self.iter_span && self.bound_span.exhaustive()
+    }
+
+    fn incr(&mut self) {
+        self.i += 1;
+    }
+
+    fn is_finished(&self) -> bool {
+        self.i() >= self.len()
+    }
+
+    fn reset(&mut self) {
+        self.i = 0;
+    }
+
+    fn get(&self) -> Option<<Self as Iterator>::Item> {
+        match (self.iter_seq, self.iter_span) {
+            // Iterate over sequential spans.
+            (true, true) => {
+                if self.bound_span.is_wrapping() {
+                    match self.i {
+                        0 => self.bound_span.get_span(1),
+                        1 => self.bound_span.get_span(0),
+                        _ => None,
+                    }
+                } else {
+                    self.bound_span.get_span(0)
+                }
+            }
+            // Iterate over sequential indices.
+            (true, false) => self.bound_span.get_index_ordered(self.i).map(|i| i.into()),
+
+            // Iterate over non-sequential spans.
+            (false, true) => self.bound_span.get_span(self.i),
+            // Iterate over non-sequential indices.
+            (false, false) => self.bound_span.get_index(self.i).map(|i| i.into()),
+        }
+    }
+}
+
+impl ExactSizeIterator for BoundSpanIterator {
+    fn len(&self) -> usize {
+        if self.iter_span {
+            match self.bound_span.is_wrapping() {
+                true => 2,
+                false => 1,
+            }
+        } else {
+            self.bound_span.len()
+        }
+    }
+}
+
+impl Iterator for BoundSpanIterator {
+    type Item = UnboundSpan;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let item = self.get();
+        self.incr();
+
+        item
     }
 }
 
 #[cfg(test)]
-mod test {
-    use crate::span_iter::SpanIterator;
-    use crate::CircularArrayVec;
+mod tests {
 
-    #[test]
-    fn iter() {
-        let shape = [4, 3, 2];
-        let mut array = CircularArrayVec::from_iter(shape, 0..shape.iter().product());
+    #[cfg(test)]
+    mod unbound {
 
-        array.offset = [2, 2, 1];
-        let iter = SpanIterator::new(array.spans());
-        #[rustfmt::skip]
-        assert_eq!(iter.collect::<Vec<_>>(), [
-            ([2, 2, 1], [3, 2, 1]),
-            ([0, 2, 1], [1, 2, 1]),
-            ([2, 0, 1], [3, 0, 1]),
-            ([0, 0, 1], [1, 0, 1]),
-            ([2, 1, 1], [3, 1, 1]),
-            ([0, 1, 1], [1, 1, 1]),
-            ([2, 2, 0], [3, 2, 0]),
-            ([0, 2, 0], [1, 2, 0]),
-            ([2, 0, 0], [3, 0, 0]),
-            ([0, 0, 0], [1, 0, 0]),
-            ([2, 1, 0], [3, 1, 0]),
-            ([0, 1, 0], [1, 1, 0])
-        ]);
+        use crate::span::UnboundSpan;
+        use crate::span_iter::UnboundSpanIterator;
 
-        array.offset = [0, 2, 1];
-        let iter = SpanIterator::new(array.spans());
-        #[rustfmt::skip]
-        assert_eq!(iter.collect::<Vec<_>>(), [
-            ([0, 2, 1], [3, 2, 1]),
-            ([0, 0, 1], [3, 1, 1]),
-            ([0, 2, 0], [3, 2, 0]),
-            ([0, 0, 0], [3, 1, 0])
-        ]);
+        #[test]
+        fn len() {
+            let idx_iter = UnboundSpanIterator::new(UnboundSpan::new(1, 3), false);
+            let span_iter = UnboundSpanIterator::new(UnboundSpan::new(1, 3), true);
 
-        array.offset = [0, 0, 1];
-        let iter = SpanIterator::new(array.spans());
-        #[rustfmt::skip]
-        assert_eq!(iter.collect::<Vec<_>>(), [
-            ([0, 0, 1], [3, 2, 1]),
-            ([0, 0, 0], [3, 2, 0]),
-        ]);
+            assert_eq!(idx_iter.len(), 3);
+            assert_eq!(span_iter.len(), 1);
+        }
 
-        array.offset = [0, 0, 0];
-        let iter = SpanIterator::new(array.spans());
-        #[rustfmt::skip]
-        assert_eq!(iter.collect::<Vec<_>>(), [
-            ([0, 0, 0], [3, 2, 1]),
-        ]);
+        #[test]
+        fn iter() {
+            let iter = UnboundSpanIterator::new(UnboundSpan::new(1, 3), false);
+
+            #[rustfmt::skip]
+            assert_eq!(iter.collect::<Vec<_>>(), [
+                (1, 1).into(), (2, 2).into(), (3, 3).into()
+            ]);
+        }
+
+        #[test]
+        fn iter_span() {
+            let iter = UnboundSpanIterator::new(UnboundSpan::new(1, 3), true);
+
+            assert_eq!(iter.collect::<Vec<_>>(), [(1, 3).into()]);
+        }
     }
 
-    #[test]
-    fn iter_cont() {
-        let shape = [4, 3, 2];
-        let mut array = CircularArrayVec::from_iter(shape, 0..shape.iter().product());
+    #[cfg(test)]
+    mod bound {
 
-        array.offset = [2, 2, 1];
-        let iter = SpanIterator::new_contiguous(array.spans());
-        assert_eq!(iter.collect::<Vec<_>>(), [([0, 0, 0], [3, 2, 1]),]);
+        use crate::span::BoundSpan;
+        use crate::span_iter::BoundSpanIterator;
 
-        array.offset = [0, 2, 1];
-        let iter = SpanIterator::new_contiguous(array.spans());
-        assert_eq!(iter.collect::<Vec<_>>(), [([0, 0, 0], [3, 2, 1]),]);
+        #[test]
+        fn len() {
+            let idx_iter = BoundSpanIterator::new(BoundSpan::new(4, 5, 6), false, false);
+            let span_iter = BoundSpanIterator::new(BoundSpan::new(4, 5, 6), false, true);
 
-        array.offset = [0, 0, 1];
-        let iter = SpanIterator::new_contiguous(array.spans());
-        assert_eq!(iter.collect::<Vec<_>>(), [([0, 0, 0], [3, 2, 1]),]);
+            assert_eq!(idx_iter.len(), 5);
+            assert_eq!(span_iter.len(), 2);
+        }
 
-        array.offset = [0, 0, 0];
-        let iter = SpanIterator::new_contiguous(array.spans());
-        assert_eq!(iter.collect::<Vec<_>>(), [([0, 0, 0], [3, 2, 1]),]);
+        #[test]
+        fn iter() {
+            let iter = BoundSpanIterator::new(BoundSpan::new(4, 5, 6), false, false);
+
+            #[rustfmt::skip]
+            assert_eq!(iter.collect::<Vec<_>>(), [
+                (4, 4).into(), (5, 5).into(), (0, 0).into(), (1, 1).into(), (2, 2).into()
+            ]);
+        }
+
+        #[test]
+        fn iter_seq() {
+            let iter = BoundSpanIterator::new(BoundSpan::new(4, 5, 6), true, false);
+
+            #[rustfmt::skip]
+            assert_eq!(iter.collect::<Vec<_>>(), [
+                (0, 0).into(), (1, 1).into(), (2, 2).into(), (4, 4).into(), (5, 5).into()
+            ]);
+        }
+
+        #[test]
+        fn iter_span() {
+            let iter = BoundSpanIterator::new(BoundSpan::new(4, 5, 6), false, true);
+
+            assert_eq!(iter.collect::<Vec<_>>(), [(4, 5).into(), (0, 2).into()]);
+        }
+
+        #[test]
+        fn iter_seq_span() {
+            let iter = BoundSpanIterator::new(BoundSpan::new(4, 5, 6), true, true);
+
+            assert_eq!(iter.collect::<Vec<_>>(), [(0, 2).into(), (4, 5).into()]);
+        }
     }
 }
