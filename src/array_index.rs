@@ -1,5 +1,5 @@
 use std::array;
-use std::ops::{Index, IndexMut, Range};
+use std::ops::{Index, Range};
 
 use crate::array_iter::CircularArrayIterator;
 use crate::index::RawIndexAdaptor;
@@ -8,14 +8,50 @@ use crate::span::{BoundSpan, UnboundSpan};
 use crate::CircularArray;
 
 /// Operations for retrieving elements from the array.
-pub trait CircularArrayIndex<'a, const N: usize, T: 'a> {
+pub trait CircularIndex<'a, const N: usize, T: 'a> {
+    /// Get a reference to the element at the given index, aligned to the offset.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use n_circular_array::{CircularArray, CircularIndex};
+    /// let mut array = CircularArray::new_offset([3, 3], [1, 0], vec![
+    ///     2, 0, 1,
+    ///     5, 3, 4,
+    ///     8, 6, 7,
+    /// ]);
+    /// assert_eq!(array.get([0, 0]), &0);
+    /// ```
+    fn get(&'a self, index: [usize; N]) -> &'a T;
+
+    /// Get a reference to the element at the given index. This does **not**
+    /// account for the offset. See [`CircularArray::offset`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use n_circular_array::{CircularArray, CircularIndex};
+    /// let mut array = CircularArray::new_offset([3, 3], [1, 0], vec![
+    ///     2, 0, 1,
+    ///     5, 3, 4,
+    ///     8, 6, 7,
+    /// ]);
+    /// assert_eq!(array.get_raw([0, 0]), &2);
+    /// ```
+    fn get_raw(&'a self, index: [usize; N]) -> &'a T;
+
     /// Iterate over all elements of the inner array, aligned to the offset.
     ///
     /// # Example
     ///
     /// ```
     /// # use n_circular_array::CircularArray;
-    /// # use n_circular_array::{CircularArrayIndex, CircularArrayMut};
+    /// # use n_circular_array::{CircularIndex, CircularMut};
+    /// let mut array = CircularArray::new([3, 3], vec![
+    ///     0, 1, 2,
+    ///     3, 4, 5,
+    ///     6, 7, 8,
+    /// ]);
     /// let mut array = CircularArray::new([3, 3], Vec::from_iter(0..3 * 3));
     /// // A circular array of values `3..12`.
     /// array.push_front(1, &[9, 10, 11]);
@@ -34,7 +70,7 @@ pub trait CircularArrayIndex<'a, const N: usize, T: 'a> {
     ///
     /// ```
     /// # use n_circular_array::CircularArray;
-    /// # use n_circular_array::{CircularArrayIndex, CircularArrayMut};
+    /// # use n_circular_array::{CircularIndex, CircularMut};
     /// let mut array = CircularArray::new([3, 3], Vec::from_iter(0..3 * 3));
     /// // A circular array of values `3..12`.
     /// array.push_front(1, &[9, 10, 11]);
@@ -53,7 +89,7 @@ pub trait CircularArrayIndex<'a, const N: usize, T: 'a> {
     ///
     /// ```
     /// # use n_circular_array::CircularArray;
-    /// # use n_circular_array::{CircularArrayIndex, CircularArrayMut};
+    /// # use n_circular_array::{CircularIndex, CircularMut};
     /// let mut array = CircularArray::new([3, 3], Vec::from_iter(0..3 * 3));
     /// // A circular array of values `3..12`.
     /// array.push_front(1, &[9, 10, 11]);
@@ -70,7 +106,7 @@ pub trait CircularArrayIndex<'a, const N: usize, T: 'a> {
     ///
     /// ```
     /// # use n_circular_array::CircularArray;
-    /// # use n_circular_array::{CircularArrayIndex, CircularArrayMut};
+    /// # use n_circular_array::{CircularIndex, CircularMut};
     /// let mut array = CircularArray::new([3, 3], Vec::from_iter(0..3 * 3));
     /// // A circular array of values `3..12`.
     /// array.push_front(1, &[9, 10, 11]);
@@ -83,14 +119,14 @@ pub trait CircularArrayIndex<'a, const N: usize, T: 'a> {
 
     /// Iterate over all elements of the given index `range` for the given `axis`,
     /// aligned to the offset.
-    /// This is equivalent to [`CircularArrayIndex::iter_slice`] where all axis
+    /// This is equivalent to [`CircularIndex::iter_slice`] where all axis
     /// ranges are exhaustive except for the specified `axis`.
     ///
     /// # Example
     ///
     /// ```
     /// # use n_circular_array::CircularArray;
-    /// # use n_circular_array::{CircularArrayIndex, CircularArrayMut};
+    /// # use n_circular_array::{CircularIndex, CircularMut};
     /// let mut array = CircularArray::new([3, 3], Vec::from_iter(0..3 * 3));
     /// // A circular array of values `3..12`.
     /// array.push_front(1, &[9, 10, 11]);
@@ -108,14 +144,14 @@ pub trait CircularArrayIndex<'a, const N: usize, T: 'a> {
     ) -> impl ExactSizeIterator<Item = &'a T>;
 
     /// Iterate over all elements of the given index `range` for the given `axis`.
-    /// This is equivalent to [`CircularArrayIndex::iter_slice_raw`] where all axis
+    /// This is equivalent to [`CircularIndex::iter_slice_raw`] where all axis
     /// ranges are exhaustive except for the specified `axis`.
     ///
     /// # Example
     ///
     /// ```
     /// # use n_circular_array::CircularArray;
-    /// # use n_circular_array::{CircularArrayIndex, CircularArrayMut};
+    /// # use n_circular_array::{CircularIndex, CircularMut};
     /// let mut array = CircularArray::new([3, 3], Vec::from_iter(0..3 * 3));
     /// // A circular array of values `3..12`.
     /// array.push_front(1, &[9, 10, 11]);
@@ -138,7 +174,7 @@ pub trait CircularArrayIndex<'a, const N: usize, T: 'a> {
     ///
     /// ```
     /// # use n_circular_array::CircularArray;
-    /// # use n_circular_array::{CircularArrayIndex, CircularArrayMut};
+    /// # use n_circular_array::{CircularIndex, CircularMut};
     /// let mut array = CircularArray::new([3, 3], Vec::from_iter(0..3 * 3));
     /// // A circular array of values `3..12`.
     /// array.push_front(1, &[9, 10, 11]);
@@ -156,7 +192,7 @@ pub trait CircularArrayIndex<'a, const N: usize, T: 'a> {
     ///
     /// ```
     /// # use n_circular_array::CircularArray;
-    /// # use n_circular_array::{CircularArrayIndex, CircularArrayMut};
+    /// # use n_circular_array::{CircularIndex, CircularMut};
     /// let mut array = CircularArray::new([3, 3], Vec::from_iter(0..3 * 3));
     /// // A circular array of values `3..12`.
     /// array.push_front(1, &[9, 10, 11]);
@@ -167,44 +203,6 @@ pub trait CircularArrayIndex<'a, const N: usize, T: 'a> {
     /// ]);
     /// ```
     fn iter_slice_raw(&'a self, slice: [Range<usize>; N]) -> impl ExactSizeIterator<Item = &'a T>;
-
-    /// Get a reference to the element at the given index, aligned to the offset.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use n_circular_array::CircularArray;
-    /// # use n_circular_array::{CircularArrayIndex, CircularArrayMut};
-    /// let mut array = CircularArray::new([3, 3], Vec::from_iter(0..3 * 3));
-    /// // A circular array of values `3..12`.
-    /// array.push_front(1, &[9, 10, 11]);
-    ///
-    /// assert_eq!(array.get([0, 0]), &3);
-    /// ```
-    fn get(&'a self, index: [usize; N]) -> &'a T;
-
-    /// Get a reference to the element at the given index.
-    /// # Example
-    ///
-    /// ```
-    /// # use n_circular_array::CircularArray;
-    /// # use n_circular_array::{CircularArrayIndex, CircularArrayMut};
-    /// let mut array = CircularArray::new([3, 3], Vec::from_iter(0..3 * 3));
-    /// // A circular array of values `3..12`.
-    /// array.push_front(1, &[9, 10, 11]);
-    ///
-    /// assert_eq!(array.get_raw([0, 0]), &9);
-    /// ```
-    fn get_raw(&'a self, index: [usize; N]) -> &'a T;
-}
-
-/// Methods for retrieving mutable references to elements of the array.
-pub trait CircularArrayIndexMut<'a, const N: usize, T: 'a> {
-    /// Get a mutable reference to the element at the given index, aligned to the offset.
-    fn get_mut(&mut self, index: [usize; N]) -> &mut T;
-
-    /// Get a mutable reference to the element at the given index.
-    fn get_mut_raw(&mut self, index: [usize; N]) -> &mut T;
 }
 
 impl<const N: usize, A, T> CircularArray<N, A, T> {
@@ -244,12 +242,10 @@ impl<const N: usize, A, T> CircularArray<N, A, T> {
     }
 }
 
-impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
-    for CircularArray<N, A, T>
-{
+impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularIndex<'a, N, T> for CircularArray<N, A, T> {
     fn iter(&'a self) -> impl ExactSizeIterator<Item = &'a T> {
-        let iter = IndexIterator::new_bound(self.spans())
-            .into_ranges(&self.strides)
+        let iter = IndexIterator::new_bound_contiguous(self.spans())
+            .into_flat_ranges(&self.strides)
             .flat_map(|range| &self.array.as_ref()[range]);
 
         CircularArrayIterator::new(iter, self.len())
@@ -265,10 +261,10 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
         assert_shape_index!(axis, N);
         assert_slice_index!(self, axis, index);
 
-        let iter = IndexIterator::new_bound(
+        let iter = IndexIterator::new_bound_contiguous(
             self.spans_axis_bound(axis, BoundSpan::new(index, 1, self.shape[axis])),
         )
-        .into_ranges(&self.strides)
+        .into_flat_ranges(&self.strides)
         .flat_map(|range| &self.array.as_ref()[range]);
 
         CircularArrayIterator::new(iter, self.slice_len(axis))
@@ -281,7 +277,7 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
         let iter = IndexIterator::new_unbound(
             self.spans_axis_bound_raw(axis, UnboundSpan::from_len(index, 1)),
         )
-        .into_ranges(&self.strides)
+        .into_flat_ranges(&self.strides)
         .flat_map(|range| &self.array.as_ref()[range]);
 
         CircularArrayIterator::new(iter, self.slice_len(axis))
@@ -295,11 +291,11 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
         assert_shape_index!(axis, N);
         assert_slice_range!(self, axis, range);
 
-        let iter = IndexIterator::new_bound(self.spans_axis_bound(
+        let iter = IndexIterator::new_bound_contiguous(self.spans_axis_bound(
             axis,
             BoundSpan::new(range.start, range.len(), self.shape[axis]),
         ))
-        .into_ranges(&self.strides)
+        .into_flat_ranges(&self.strides)
         .flat_map(|range| &self.array.as_ref()[range]);
 
         CircularArrayIterator::new(iter, range.len() * self.slice_len(axis))
@@ -316,7 +312,7 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
         let iter = IndexIterator::new_unbound(
             self.spans_axis_bound_raw(axis, UnboundSpan::from_len(range.start, range.len())),
         )
-        .into_ranges(&self.strides)
+        .into_flat_ranges(&self.strides)
         .flat_map(|range| &self.array.as_ref()[range]);
 
         CircularArrayIterator::new(iter, range.len() * self.slice_len(axis))
@@ -334,8 +330,8 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
             ) % self.shape[i]
         });
 
-        let iter = IndexIterator::new_bound(spans)
-            .into_ranges(&self.strides)
+        let iter = IndexIterator::new_bound_contiguous(spans)
+            .into_flat_ranges(&self.strides)
             .flat_map(|range| &self.array.as_ref()[range]);
         let len = spans.iter().map(|spans| spans.len()).product();
 
@@ -351,7 +347,7 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
         });
 
         let iter = IndexIterator::new_unbound(spans)
-            .into_ranges(&self.strides)
+            .into_flat_ranges(&self.strides)
             .flat_map(|range| &self.array.as_ref()[range]);
         let len = spans.iter().map(|spans| spans.len()).product();
 
@@ -364,28 +360,11 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> CircularArrayIndex<'a, N, T>
             *idx = (*idx + self.offset[i]) % (self.shape[i]);
         });
 
-        &self.array.as_ref()[self.strides.apply_to_index(index)]
+        &self.array.as_ref()[self.strides.offset_index(index)]
     }
 
     fn get_raw(&'a self, index: [usize; N]) -> &'a T {
-        &self.array.as_ref()[self.strides.apply_to_index(index)]
-    }
-}
-
-impl<'a, const N: usize, A: AsMut<[T]>, T: 'a> CircularArrayIndexMut<'a, N, T>
-    for CircularArray<N, A, T>
-{
-    fn get_mut(&mut self, mut index: [usize; N]) -> &mut T {
-        index.iter_mut().enumerate().for_each(|(i, idx)| {
-            assert_slice_index!(self, i, *idx);
-            *idx = (*idx + self.offset[i]) % (self.shape[i]);
-        });
-
-        &mut self.array.as_mut()[self.strides.apply_to_index(index)]
-    }
-
-    fn get_mut_raw(&mut self, index: [usize; N]) -> &mut T {
-        &mut self.array.as_mut()[self.strides.apply_to_index(index)]
+        &self.array.as_ref()[self.strides.offset_index(index)]
     }
 }
 
@@ -394,14 +373,6 @@ impl<'a, const N: usize, A: AsRef<[T]>, T: 'a> Index<[usize; N]> for CircularArr
 
     fn index(&self, index: [usize; N]) -> &Self::Output {
         self.get(index)
-    }
-}
-
-impl<'a, const N: usize, A: AsRef<[T]> + AsMut<[T]>, T: 'a> IndexMut<[usize; N]>
-    for CircularArray<N, A, T>
-{
-    fn index_mut(&mut self, index: [usize; N]) -> &mut Self::Output {
-        self.get_mut(index)
     }
 }
 
@@ -449,7 +420,7 @@ mod tests {
     #[test]
     fn iter_index() {
         let shape = [3, 3, 3];
-        let mut m = CircularArrayVec::from_iter_offset(shape, 0..shape.iter().product(), [1, 0, 0]);
+        let mut m = CircularArrayVec::from_iter_offset(shape, [1, 0, 0], 0..shape.iter().product());
 
         #[rustfmt::skip]
         assert_eq!(
@@ -481,7 +452,7 @@ mod tests {
     #[test]
     fn iter_range() {
         let shape = [3, 3, 3];
-        let mut m = CircularArrayVec::from_iter_offset(shape, 0..shape.iter().product(), [1, 0, 0]);
+        let mut m = CircularArrayVec::from_iter_offset(shape, [1, 0, 0], 0..shape.iter().product());
 
         #[rustfmt::skip]
         assert_eq!(
@@ -522,7 +493,7 @@ mod tests {
     #[test]
     fn iter_range_raw() {
         let shape = [3, 3, 3];
-        let mut m = CircularArrayVec::from_iter_offset(shape, 0..shape.iter().product(), [1, 0, 0]);
+        let mut m = CircularArrayVec::from_iter_offset(shape, [1, 0, 0], 0..shape.iter().product());
 
         #[rustfmt::skip]
         assert_eq!(
@@ -563,7 +534,7 @@ mod tests {
     #[test]
     fn iter_slice() {
         let shape = [3, 3, 3];
-        let mut m = CircularArrayVec::from_iter_offset(shape, 0..shape.iter().product(), [1, 1, 1]);
+        let mut m = CircularArrayVec::from_iter_offset(shape, [1, 1, 1], 0..shape.iter().product());
 
         #[rustfmt::skip]
         assert_eq!(m.iter_slice([0..1, 0..1, 0..1]).cloned().collect::<Vec<_>>(), &[13]);
@@ -593,7 +564,7 @@ mod tests {
     #[test]
     fn get() {
         let shape = [3, 3, 3];
-        let m = CircularArrayVec::from_iter_offset(shape, 0..shape.iter().product(), [1, 1, 1]);
+        let m = CircularArrayVec::from_iter_offset(shape, [1, 1, 1], 0..shape.iter().product());
 
         assert_eq!(m.get([0, 0, 0]), &13);
         assert_eq!(m.get([1, 1, 1]), &26);

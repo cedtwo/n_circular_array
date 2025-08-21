@@ -26,7 +26,7 @@ macro_rules! assert_slice_len {
     ) => {
         assert!(
             $el_n <= $array.shape[$axis],
-            "operation on axis {} expected an element slice length <= axis length {} (recieved {})",
+            "operation on axis {} expected a slice length <= axis length {} (recieved {})",
             $axis,
             $array.shape[$axis],
             $el_n
@@ -79,6 +79,36 @@ macro_rules! assert_slice_range {
             $range,
             $axis,
             $array.shape[$axis]
+        );
+    };
+}
+
+/// Assert translation is in bounds.
+macro_rules! assert_origin_bounds {
+    (
+        $axis:ident,
+        $origin:ident,
+        $n:ident
+    ) => {
+        assert!(
+            $origin[$axis].checked_add($n).is_some(),
+            "translation {} is out of bounds for axis {}, origin {:?}",
+            $origin,
+            $n,
+            $axis,
+        );
+    };
+    (
+        $axis:ident,
+        $origin:ident,
+        -$n:ident
+    ) => {
+        assert!(
+            $origin[$axis].checked_sub($n).is_some(),
+            "translation -{} is out of bounds for axis {}, origin {:?}",
+            $n,
+            $axis,
+            $origin
         );
     };
 }

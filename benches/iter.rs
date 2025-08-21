@@ -3,7 +3,7 @@ extern crate test;
 
 use test::{black_box, Bencher};
 
-use n_circular_array::{CircularArrayBox, CircularArrayIndex};
+use n_circular_array::{CircularArrayBox, CircularIndex};
 
 /// Bench iter methods for an array of `d` dimensions of `n` elements.
 macro_rules! bench {

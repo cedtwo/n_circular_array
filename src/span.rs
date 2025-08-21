@@ -1,3 +1,4 @@
+use std::ops::Range;
 use std::ops::{Add, Rem, Sub};
 
 /// A span of inclusive elements within an axis. In contrast to [`BoundSpan`], all
@@ -33,6 +34,12 @@ impl UnboundSpan {
     /// exceeds the `end` of the span.
     pub(crate) fn get_index(&self, i: usize) -> Option<usize> {
         Some(self.start + i).filter(|i| *i <= self.end)
+    }
+
+    /// Consume the `UnboundSpan`, returning a `Range<usize>`. Offsets ranges
+    /// by the given value.
+    pub(crate) fn into_range(self, offset: usize) -> Range<usize> {
+        (self.start + offset)..(self.end + offset + 1)
     }
 }
 

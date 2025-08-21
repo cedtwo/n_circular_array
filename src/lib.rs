@@ -4,196 +4,295 @@
 //! ## Features
 //!
 //! - Fixed dimension arrays of any size.
-//! - Element insertion to the front or back of any dimension.
-//! - Indexing, range and slicing operations.
-//! - Optimized for contiguous memory.
+//! - Element retrieval by `N` dimensional index, range or slice.
+//! - Element insertion to the front or back of any axis.
+//! - `N` dimensional translation over a source array.
 //! - Support for external types through `AsRef<[T]>` and `AsMut<[T]>`.
+//! - Optimized for contiguous memory.
 //! - Thorough testing for arrays of smaller dimensionality.
 //! - No external dependencies.
 //!
-//! ## Usage
-//!
-//! The following example demonstrates the basic functionality offered by this
-//! crate.
-//!
-//! ```
-//! # use n_circular_array::CircularArrayVec;
-//! # use n_circular_array::CircularArrayMut;
-//! # use n_circular_array::CircularArrayIndex;
-//! // A 1-dimensional circular array of 6 elements.
-//! let mut array = CircularArrayVec::new([6], vec![0, 1, 2, 3, 4, 5]);
-//!
-//! array.push_front(0, &[6, 7]);
-//! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[2, 3, 4, 5, 6, 7]);
-//! array.push_back(0, &[0, 1]);
-//! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[0, 1, 2, 3, 4, 5]);
-//!
-//! // A 2-dimensional array of 3*3 elements.
-//! let mut array = CircularArrayVec::new([3, 3], vec![
-//!     0, 1, 2,
-//!     3, 4, 5,
-//!     6, 7, 8
-//! ]);
-//!
-//! // Push to the front of axis 0.
-//! array.push_front(0, &[9, 10, 11]);
-//! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
-//!     1, 2, 9,
-//!     4, 5, 10,
-//!     7, 8, 11
-//! ]);
-//!
-//! // Push to the back of axis 1.
-//! array.push_back(1, &[12, 13, 14]);
-//! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
-//!     12, 13, 14,
-//!      1,  2,  9,
-//!      4,  5, 10
-//! ]);
-//!
-//! // Iterate over index 1 of axis 0 (The second column).
-//! assert_eq!(array.iter_index(0, 1).cloned().collect::<Vec<usize>>(), &[
-//!     13,
-//!      2,
-//!      5
-//! ]);
-//! ```
-//!
 //! ## Mutation
 //!
-//! `n_circular_array` allows for mutating single elements, or inserting any number
-//! of slices to an axis. Insertion operations expect elements of **row-major**
-//! ordering. Operations accept either an array slice `&[T]`, or an `ExactSizeIterator`
-//! of `&T` elements for `_iter` suffixed methods.
+//! `n_circular_array` supports the following mutating operations:
+//! - Insert elements to either side of an axis.
+//! - Translate over a source array.
+//! - Mutate individual elements.
+//!
+//! ### Insertion
+//!
+//! Elements are inserted by providing a **row-major** slice or iterator with a length
+//! equal to an **exact** multiple of the given axis length. That is, a call to insert
+//! two rows must be provided **exactly** two rows of elements.
+//!
 //! ```
 //! # use n_circular_array::CircularArrayVec;
-//! # use n_circular_array::CircularArrayMut;
-//! # use n_circular_array::CircularArrayIndex;
+//! # use n_circular_array::CircularMut;
+//! # use n_circular_array::CircularIndex;
 //!
-//! // A 2-dimensional circular array of 3*2 elements.
+//! // A 2-dimensional circular array of 3*3 elements.
 //! let mut array = CircularArrayVec::new([3, 3], vec![
 //!     0, 1, 2,
 //!     3, 4, 5,
 //!     6, 7, 8
 //! ]);
 //!
-//! // Push two columns to the front of axis 0.
-//! array.push_front(0, &[
-//!      9, 10,
-//!     11, 12,
-//!     13, 14
-//! ]);
-//!
-//! // Mutate the last element of the array (equivalent to `array.get_mut([2, 2])`).
-//! assert_eq!(array[[2, 2]], 14);
-//! array[[2, 2]] = 99;
-//!
-//! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
-//!     2,  9, 10,
-//!     5, 11, 12,
-//!     8, 13, 99
-//! ]);
-//!
-//! // Push two rows of zero to the front of axis 1.
-//! let axis_len = array.shape()[1];
-//! array.push_front_iter(1, std::iter::repeat(&0).take(2 * axis_len));
-//!
-//! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
-//!     8, 13, 99,
-//!     0,  0,  0,
-//!     0,  0,  0,
-//! ]);
-//! ```
-//! See `[CircularArrayMut]`.
-//!
-//! ## Indexing
-//!
-//! `n_circular_array` allows for elements to be accessed by index or slice. Note
-//! that indexing operations take a fixed size array of `N` indices/ranges where `N`
-//! is the dimensionality of the array.
-//!
-//! ```
-//! # use n_circular_array::CircularArrayVec;
-//! # use n_circular_array::CircularArrayMut;
-//! # use n_circular_array::CircularArrayIndex;
-//!
-//! // A 3-dimensional array of 3*3*2 elements.
-//! let mut array = CircularArrayVec::new([3, 3, 2], vec![
-//!      0,  1,  2,
-//!      3,  4,  5,
-//!      6,  7,  8,
-//!
+//! // Push the elements 9..12 (one row) to the front of axis 1.
+//! array.push_front(1, &[
 //!      9, 10, 11,
-//!     12, 13, 14,
-//!     15, 16, 17
 //! ]);
-//!
-//! // Get the first element at index 1 of axis 2 (equivalent to `array.get([0, 0, 1])`).
-//! assert_eq!(array[[0, 0, 1]], 9);
-//!
-//! // Get the second and third row.
-//! assert_eq!(array.iter_range(1, 1..3).cloned().collect::<Vec<_>>(), &[
+//! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
 //!      3,  4,  5,
 //!      6,  7,  8,
-//!
-//!     12, 13, 14,
-//!     15, 16, 17
-//! ]);
-//!
-//! // All columns of row 2, slice 1.
-//! assert_eq!(array.iter_slice([0..3, 2..3, 1..2]).cloned().collect::<Vec<_>>(), &[
-//!     15, 16, 17
-//! ]);
-//! ```
-//! See `[CircularArrayIndex]` and `[CircularArrayIndexMut]`.
-//!
-//! ## Resizing/Reshaping
-//!
-//! Resizing or reshaping can be achieved by iterating and collecting into a new
-//! `CircularArray`. This functionality is not offered from within the crate to make the
-//! performance implications explicit.
-//!
-//! ```
-//! # use n_circular_array::CircularArrayVec;
-//! # use n_circular_array::CircularArrayIndex;
-//! # use n_circular_array::CircularArrayMut;
-//! // A 3-dimensional array of 3*3*2 elements.
-//! let mut array = CircularArrayVec::new([3, 3, 2], vec![
-//!      0,  1,  2,
-//!      3,  4,  5,
-//!      6,  7,  8,
-//!
 //!      9, 10, 11,
-//!     12, 13, 14,
-//!     15, 16, 17
 //! ]);
 //!
-//! // Insert a row at index 0.
-//! array.push_front(0, &[3, 6, 9, 12, 15, 18]);
-//! assert_eq!(array.iter().cloned().collect::<Vec<_>>(), &[
-//!      1,  2,  3,
-//!      4,  5,  6,
+//! // Push the elements 12..18 (two columns) to the front of axis 0.
+//! let axis_len = array.shape()[0];
+//! array.push_front(0, &[12, 13, 14, 15, 16, 17]);
+//! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
+//!       5, 12, 13,
+//!       8, 14, 15,
+//!      11, 16, 17,
+//! ]);
+//!
+//! // Push the elements 19..22 (one row) to the back of axis 1.
+//! array.push_back(1, &[
+//!      19, 20, 21,
+//! ]);
+//! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
+//!      19, 20, 21,
+//!       5, 12, 13,
+//!       8, 14, 15,
+//! ]);
+//! ```
+//!
+//! ### Translation
+//!
+//! Translation methods simplify mapping the elements of a *source* array to the circular
+//! array. Translation methods expect the array `origin`, or the position of the
+//! `[0; N]` element within the source array, and a translation on an axis. The provided
+//! `el_fn` function will recieve contiguous `[Range<usize>; N]` slices for mapping
+//! the new elements from the source to the circular array. `CircularArray` **only**
+//! handles slicing and mutation, and translation logic (the current translation, out of
+//! bound translation etc.) must be maintained by the user.
+//!
+//! In the following example, rather than passing the `[Range<usize>; N]` slice to a
+//! 3rd-party crate, we define the source array [`Strides`], then call [`Strides::flatten_range`]
+//! to get a single contiguous range for slicing (requires feature `strides`).
+//! ```
+//! # #[cfg(feature = "strides")] {
+//! # use std::ops::Range;
+//! # use n_circular_array::{CircularArray, CircularIndex, CircularMut, Strides};
+//! // A [5, 5] source array.
+//! let src = [
+//!      0,  1,  2,  3,  4,
+//!      5,  6,  7,  8,  9,
+//!     10, 11, 12, 13, 14,
+//!     15, 16, 17, 18, 19,
+//!     20, 21, 22, 23, 24,
+//! ];
+//! // Strides used for flattening `N` dimensional indices.
+//! let src_strides = Strides::new(&[5, 5]);
+//!
+//! // Slice function.
+//! let el_fn = |mut index: [Range<usize>; 2]| {
+//!     &src[src_strides.flatten_range(index)]
+//! };
+//!
+//! // A [3, 3] circular array positioned at `[0, 0]`.
+//! let mut origin = [0, 0];
+//! let mut dst = CircularArray::new([3, 3], vec![
+//!      0,  1,  2,
+//!      5,  6,  7,
+//!     10, 11, 12
+//! ]);
+//!
+//! // Translate by 2 on axis 0 (Pushes 2 columns to front of axis 0).
+//! let axis = 0;
+//! let n = 2;
+//! dst.translate_front(axis, n, origin, el_fn);
+//! origin[axis] += n as usize;
+//!
+//! assert_eq!(dst.iter().cloned().collect::<Vec<usize>>(), &[
+//!      2,  3,  4,
 //!      7,  8,  9,
-//!
-//!     10, 11, 12,
-//!     13, 14, 15,
-//!     16, 17, 18
+//!     12, 13, 14,
 //! ]);
-//! assert_eq!(array.offset(), &[1, 0, 0]);
 //!
-//! // Iterate over index 1 of axis 2 into a 2-dimensional array of shape [3, 3].
-//! let iter = array.iter_slice([0..3, 0..3, 1..2]);
-//! // Operations return `ExactSizeIterator` implementations.
-//! assert_eq!(iter.len(), 9);
-//! let array_2 = CircularArrayVec::from_iter([3, 3], iter.cloned());
+//! // Translate by 1 on axis 1 (Pushes 1 row to front of axis 1).
+//! let axis = 1;
+//! let n = 1;
+//! dst.translate_front(axis, n, origin, el_fn);
+//! origin[axis] += n as usize;
 //!
-//! assert_eq!(array_2.iter().cloned().collect::<Vec<_>>(), &[
-//!     10, 11, 12,
-//!     13, 14, 15,
-//!     16, 17, 18
+//! assert_eq!(dst.iter().cloned().collect::<Vec<usize>>(), &[
+//!      7,  8,  9,
+//!     12, 13, 14,
+//!     17, 18, 19,
 //! ]);
-//! assert_eq!(array_2.offset(), &[0, 0]);
+//!
+//! assert_eq!(origin, [2, 1]);
+//! # }
 //! ```
+//!
+//! ## Indexing and Slicing
+//!
+//! `n_circular_array` supports the following indexing operations:
+//! - Access elements by axis slice.
+//! - Access elements by `N` dimensional slice.
+//! - Access individual elements by index.
+//!
+//! ## Slicing an axis
+//!
+//! All elements of an axis can be iterated over by index or range. Calling
+//! [`CircularIndex::iter_index`] returns an iterator of elements of a shape
+//! equal to the shape of the circular array, with the specified axis set to `1`.
+//! Calling [`CircularIndex::iter_range`] returns an iterator of elements of a
+//! shape equal to the shape of the circular array, with the specified axis set to
+//! the length of the given range.
+//!
+//! ```
+//! # use n_circular_array::CircularArrayVec;
+//! # use n_circular_array::CircularIndex;
+//!
+//! // A 3-dimensional circular array of 3*3*2 elements.
+//! let array = CircularArrayVec::new([3, 3, 2], vec![
+//!      0,  1,  2,
+//!      3,  4,  5,
+//!      6,  7,  8,
+//!
+//!      9, 10, 11,
+//!     12, 13, 14,
+//!     15, 16, 17,
+//! ]);
+//!
+//! // Iterate over index 1 of axis 0 (shape [1, 3, 2]).
+//! assert_eq!(array.iter_index(0, 1).cloned().collect::<Vec<usize>>(), &[
+//!      1,
+//!      4,
+//!      7,
+//!
+//!     10,
+//!     13,
+//!     16,
+//! ]);
+//! // Iterate over indices 1..3 of axis 1 (shape [3, 2, 2]).
+//! assert_eq!(array.iter_range(1, 1..3).cloned().collect::<Vec<usize>>(), &[
+//!      3,  4,  5,
+//!      6,  7,  8,
+//!
+//!     12, 13, 14,
+//!     15, 16, 17,
+//! ]);
+//! ```
+//!
+//! ## Slicing the array
+//!
+//! Calling [`CircularIndex::iter_slice`] can be used to iterate over an `N`
+//! dimensional slice of the array. This can be used to limit iteration to an
+//! exact subset of elements.
+//!
+//! ```
+//! # use n_circular_array::CircularArrayVec;
+//! # use n_circular_array::CircularIndex;
+//!
+//! // A 3-dimensional circular array of 3*3*2 elements.
+//! let array = CircularArrayVec::new([3, 3, 2], vec![
+//!      0,  1,  2,
+//!      3,  4,  5,
+//!      6,  7,  8,
+//!
+//!      9, 10, 11,
+//!     12, 13, 14,
+//!     15, 16, 17,
+//! ]);
+//!
+//! // Iterate over:
+//! //     - index 1 of axis 0,
+//! //     - range 0..3 of axis 1 (all elements),
+//! //     - index 1 of axis 2.
+//! // (shape [1, 2, 1], equivalent to [2]).
+//! assert_eq!(array.iter_slice([1..2, 0..3, 1..2]).cloned().collect::<Vec<usize>>(), &[
+//!     10,
+//!     13,
+//!     16,
+//! ]);
+//! // Iterate over:
+//! //     - range 0..2 of axis 0,
+//! //     - range 1..3 of axis 1,
+//! //     - index 0 of axis 2.
+//! // (shape [2, 2, 1], equivalent to [2, 2]).
+//! assert_eq!(array.iter_slice([0..2, 1..3, 0..1]).cloned().collect::<Vec<usize>>(), &[
+//!      3,  4,
+//!      6,  7,
+//! ]);
+//! ```
+//!
+//! `n_circular_array` resizing or reshaping functionality can be achieved by using
+//! [`CircularIndex::iter_slice`] and collecting into a new array.
+//!
+//! ```
+//! # use n_circular_array::CircularArrayVec;
+//! # use n_circular_array::CircularIndex;
+//!
+//! // A 3-dimensional circular array of 3*3*2 elements.
+//! let array3 = CircularArrayVec::new([3, 3, 2], vec![
+//!      0,  1,  2,
+//!      3,  4,  5,
+//!      6,  7,  8,
+//!
+//!      9, 10, 11,
+//!     12, 13, 14,
+//!     15, 16, 17,
+//! ]);
+//!
+//! // Iterate over:
+//! //     - range 0..2 of axis 0,
+//! //     - range 1..3 of axis 1,
+//! //     - index 0 of axis 2.
+//! // (shape [2, 2, 1], equivalent to [2, 2]).
+//! let iter = array3.iter_slice([0..2, 1..3, 0..1]).cloned();
+//!
+//! // A 2-dimensional circular array of 3*2 elements.
+//! let array2 = CircularArrayVec::from_iter([2, 2], iter);
+//!
+//! assert_eq!(array2.iter().cloned().collect::<Vec<usize>>(), &[
+//!      3,  4,
+//!      6,  7,
+//! ]);
+//! ```
+//!
+//! ### Index and IndexMut
+//!
+//! Finally, `n_circular_array` supports [`std::ops::Index`] and [`std::ops::IndexMut`]
+//! taking an `N` dimensional index (`[usize; N]`) as argument.
+//!
+//! ```
+//! # use n_circular_array::CircularArrayVec;
+//! # use n_circular_array::CircularMut;
+//! # use n_circular_array::CircularIndex;
+//!
+//! // A 2-dimensional circular array of 3*3 elements.
+//! let mut array = CircularArrayVec::new([3, 3], vec![
+//!     0, 1, 2,
+//!     3, 4, 5,
+//!     6, 7, 8
+//! ]);
+//!
+//! array[[1, 1]] += 10;
+//! assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
+//!     0,  1, 2,
+//!     3, 14, 5,
+//!     6,  7, 8
+//! ]);
+//! ```
+//!
+//! # Features
+//!
+//! Feature | Description
+//! ---|---|---
+//! `strides` | Exports [`Strides`] for flattening `N` dimensional indices during translation.
 //!
 //! # Performance
 //!
@@ -230,5 +329,8 @@ mod span_iter;
 mod strides;
 
 pub use array::{CircularArray, CircularArrayBox, CircularArrayVec};
-pub use array_index::{CircularArrayIndex, CircularArrayIndexMut};
-pub use array_mut::CircularArrayMut;
+pub use array_index::CircularIndex;
+pub use array_mut::CircularMut;
+
+#[cfg(feature = "strides")]
+pub use strides::Strides;

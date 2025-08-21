@@ -39,7 +39,7 @@ where
     /// let circular_array = CircularArray::new(shape, array);
     /// ```
     pub fn new(shape: [usize; N], array: A) -> CircularArray<N, A, T> {
-        Self::new_offset(shape, array, [0; N])
+        Self::new_offset(shape, [0; N], array)
     }
 
     /// Create a new `CircularArray` from the given buffer and `offset`.
@@ -51,9 +51,9 @@ where
     /// let array = Vec::from_iter(0..shape.iter().product());
     ///
     /// // Offset by 1 on axis 0.
-    /// let circular_array = CircularArray::new_offset(shape, array, [1, 0, 0]);
+    /// let circular_array = CircularArray::new_offset(shape, [1, 0, 0], array);
     /// ```
-    pub fn new_offset(shape: [usize; N], array: A, offset: [usize; N]) -> CircularArray<N, A, T> {
+    pub fn new_offset(shape: [usize; N], offset: [usize; N], array: A) -> CircularArray<N, A, T> {
         assert!(
             array.as_ref().len() == shape.iter().product(),
             "Element length does not match shape"
@@ -76,7 +76,14 @@ where
         &self.shape
     }
 
-    /// Get the offset array.
+    /// Get the array strides.
+    pub fn strides(&self) -> &Strides<N> {
+        &self.strides
+    }
+
+    /// Get the array offset. This is not always incremented sequentually. Where a
+    /// mutating operation inserts elements equal to the product of the array shape,
+    /// the offset will be set to `[0; N]`.
     pub fn offset(&self) -> &[usize; N] {
         &self.offset
     }
@@ -118,7 +125,7 @@ impl<const N: usize, T> CircularArray<N, Vec<T>, T> {
     /// ```
     pub fn from_iter(shape: [usize; N], iter: impl Iterator<Item = T>) -> Self {
         let array = iter.collect::<Vec<T>>();
-        Self::new_offset(shape, array, [0; N])
+        Self::new_offset(shape, [0; N], array)
     }
 
     /// Create a new [`CircularArrayVec`] from an iterator with the given `offset`.
@@ -128,15 +135,15 @@ impl<const N: usize, T> CircularArray<N, Vec<T>, T> {
     /// # use n_circular_array::CircularArrayVec;
     /// let shape = [3, 3, 3];
     /// // Offset by 1 on axis 0.
-    /// let circular_array = CircularArrayVec::from_iter_offset(shape, 0..shape.iter().product(), [1, 0, 0]);
+    /// let circular_array = CircularArrayVec::from_iter_offset(shape, [1, 0, 0], 0..shape.iter().product());
     /// ```
     pub fn from_iter_offset(
         shape: [usize; N],
-        iter: impl Iterator<Item = T>,
         offset: [usize; N],
+        iter: impl Iterator<Item = T>,
     ) -> Self {
         let array = iter.collect::<Vec<T>>();
-        Self::new_offset(shape, array, offset)
+        Self::new_offset(shape, offset, array)
     }
 }
 
@@ -151,7 +158,7 @@ impl<const N: usize, T> CircularArray<N, Box<[T]>, T> {
     /// ```
     pub fn from_iter(shape: [usize; N], iter: impl Iterator<Item = T>) -> Self {
         let array = iter.collect::<Vec<T>>().into_boxed_slice();
-        Self::new_offset(shape, array, [0; N])
+        Self::new_offset(shape, [0; N], array)
     }
 
     /// Create a new [`CircularArrayBox`] from an iterator with the given `offset`.
@@ -169,6 +176,6 @@ impl<const N: usize, T> CircularArray<N, Box<[T]>, T> {
         offset: [usize; N],
     ) -> Self {
         let array = iter.collect::<Vec<T>>().into_boxed_slice();
-        Self::new_offset(shape, array, offset)
+        Self::new_offset(shape, offset, array)
     }
 }

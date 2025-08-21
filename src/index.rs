@@ -44,7 +44,7 @@ impl<const N: usize> DerefMut for RawIndex<N> {
 
 /// A contiguous raw index span across `N` dimensions.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) struct RawIndexSpan<const N: usize>([UnboundSpan; N]);
+pub(crate) struct RawIndexSpan<const N: usize>(pub(crate) [UnboundSpan; N]);
 
 impl<const N: usize> Debug for RawIndexSpan<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -66,6 +66,11 @@ impl<const N: usize> RawIndexSpan<N> {
         });
 
         result
+    }
+
+    /// Split the `RawIndexSpan` into a ranges. Offsets ranges by the given `origin`.
+    pub(crate) fn into_ranges(self, origin: [usize; N]) -> [Range<usize>; N] {
+        std::array::from_fn(|i| self[i].into_range(origin[i]))
     }
 }
 
@@ -117,14 +122,19 @@ impl<const N: usize> DerefMut for RawIndexSpan<N> {
     }
 }
 
-/// Iterator adaptor for `RawIndexSpan` conversion.
+/// Iterator adaptor for `RawIndexSpan` type conversion.
 pub(crate) trait RawIndexAdaptor<'a, const N: usize> {
     /// Flatten `RawIndexSpan` types into `usize` elements.
     #[allow(dead_code)]
-    fn into_indices(self, strides: &'a Strides<N>) -> impl Iterator<Item = usize> + Clone + 'a;
+    fn into_flat_indices(self, strides: &'a Strides<N>)
+        -> impl Iterator<Item = usize> + Clone + 'a;
 
-    /// Type conversion from `RawIndexSpan` into slice `Range<usize>` types.
-    fn into_ranges(
+    /// Return `RawIndexSpan`s as `N` dimensional index ranges. Takes an `origin`
+    /// for offsetting ranges.
+    fn into_ranges(self, origin: [usize; N]) -> impl Iterator<Item = [Range<usize>; N]>;
+
+    /// Flatten `RawIndexSpan` into contiguous `usize` ranges.
+    fn into_flat_ranges(
         self,
         strides: &'a Strides<N>,
     ) -> impl Iterator<Item = Range<usize>> + Clone + 'a;
@@ -133,20 +143,27 @@ pub(crate) trait RawIndexAdaptor<'a, const N: usize> {
 impl<'a, const N: usize, T: Iterator<Item = RawIndexSpan<N>> + Clone + 'a> RawIndexAdaptor<'a, N>
     for T
 {
-    fn into_indices(self, strides: &'a Strides<N>) -> impl Iterator<Item = usize> + Clone + 'a {
+    fn into_flat_indices(
+        self,
+        strides: &'a Strides<N>,
+    ) -> impl Iterator<Item = usize> + Clone + 'a {
         self.flat_map(|span| {
             let (start, end) = span.split_bounds();
-            strides.apply_to_index(*start)..strides.apply_to_index(*end) + 1
+            strides.offset_index(*start)..strides.offset_index(*end) + 1
         })
     }
 
-    fn into_ranges(
+    fn into_ranges(self, origin: [usize; N]) -> impl Iterator<Item = [Range<usize>; N]> {
+        self.map(move |span| span.into_ranges(origin))
+    }
+
+    fn into_flat_ranges(
         self,
         strides: &'a Strides<N>,
     ) -> impl Iterator<Item = Range<usize>> + Clone + 'a {
         self.map(|span| {
             let (start, end) = span.split_bounds();
-            strides.apply_to_index(*start)..strides.apply_to_index(*end) + 1
+            strides.offset_index(*start)..strides.offset_index(*end) + 1
         })
     }
 }

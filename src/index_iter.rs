@@ -34,8 +34,26 @@ impl<const D: usize> IndexIterator<D, UnboundSpanIterator> {
 }
 
 impl<const D: usize> IndexIterator<D, BoundSpanIterator> {
-    /// Create a new iterator for bound axis spans.
+    /// Create a new iterator for bound axis spans. Spans are **not** contiguous
+    /// across axes, and therefore only axis `0` will be contiguous. This should
+    /// be preffered if mapping slices from/to an array of a different shape.
     pub(crate) fn new_bound(spans: [BoundSpan; D]) -> Self {
+        let mut cont = true;
+
+        let bounds = spans.map(|span| {
+            let bounds = BoundSpanIterator::new(span, false, cont);
+            cont = false;
+
+            bounds
+        });
+
+        IndexIterator(bounds)
+    }
+
+    /// Create a new iterator for bound axis spans. Spans are contiguous across
+    /// axes where possible. This should be preffered destination arrays when
+    /// mapping elements from iterators or contiguous slices.
+    pub(crate) fn new_bound_contiguous(spans: [BoundSpan; D]) -> Self {
         let mut cont = true;
 
         let bounds = spans.map(|span| {
@@ -48,10 +66,14 @@ impl<const D: usize> IndexIterator<D, BoundSpanIterator> {
         IndexIterator(bounds)
     }
 
-    /// Create a new iterator for bound axis spans, maintaining the contiguity
-    /// of the array.
+    // TODO: This has the potential for improved cache locality for the destination
+    // array. Requires creating `BoundSpan`s for the source. Applicable to `push` and
+    // `push_fn` mutation methods.
+
+    /// Create a new iterator for bound axis spans. Spans are contiguous across
+    /// axes where possible and always ordered.
     #[allow(dead_code)]
-    pub(crate) fn new_bound_contiguous(spans: [BoundSpan; D]) -> Self {
+    pub(crate) fn new_bound_contiguous_ordered(spans: [BoundSpan; D]) -> Self {
         let mut cont = true;
 
         let bounds = spans.map(|mut span| {
@@ -175,7 +197,7 @@ mod tests {
                 let mut array = CircularArrayVec::from_iter(shape, 0..shape.iter().product());
 
                 array.offset = [2, 2, 1];
-                let iter = IndexIterator::new_bound(array.spans());
+                let iter = IndexIterator::new_bound_contiguous(array.spans());
                 #[rustfmt::skip]
                 assert_eq!(iter.collect::<Vec<_>>(), [
                     ([2, 2, 1], [3, 2, 1]),
@@ -193,7 +215,7 @@ mod tests {
                 ]);
 
                 array.offset = [0, 2, 1];
-                let iter = IndexIterator::new_bound(array.spans());
+                let iter = IndexIterator::new_bound_contiguous(array.spans());
                 #[rustfmt::skip]
                 assert_eq!(iter.collect::<Vec<_>>(), [
                     ([0, 2, 1], [3, 2, 1]),
@@ -203,7 +225,7 @@ mod tests {
                 ]);
 
                 array.offset = [0, 0, 1];
-                let iter = IndexIterator::new_bound(array.spans());
+                let iter = IndexIterator::new_bound_contiguous(array.spans());
                 #[rustfmt::skip]
                 assert_eq!(iter.collect::<Vec<_>>(), [
                     ([0, 0, 1], [3, 2, 1]),
@@ -211,7 +233,7 @@ mod tests {
                 ]);
 
                 array.offset = [0, 0, 0];
-                let iter = IndexIterator::new_bound(array.spans());
+                let iter = IndexIterator::new_bound_contiguous(array.spans());
                 #[rustfmt::skip]
                 assert_eq!(iter.collect::<Vec<_>>(), [
                     ([0, 0, 0], [3, 2, 1]),
@@ -224,19 +246,19 @@ mod tests {
                 let mut array = CircularArrayVec::from_iter(shape, 0..shape.iter().product());
 
                 array.offset = [2, 2, 1];
-                let iter = IndexIterator::new_bound_contiguous(array.spans());
+                let iter = IndexIterator::new_bound_contiguous_ordered(array.spans());
                 assert_eq!(iter.collect::<Vec<_>>(), [([0, 0, 0], [3, 2, 1]),]);
 
                 array.offset = [0, 2, 1];
-                let iter = IndexIterator::new_bound_contiguous(array.spans());
+                let iter = IndexIterator::new_bound_contiguous_ordered(array.spans());
                 assert_eq!(iter.collect::<Vec<_>>(), [([0, 0, 0], [3, 2, 1]),]);
 
                 array.offset = [0, 0, 1];
-                let iter = IndexIterator::new_bound_contiguous(array.spans());
+                let iter = IndexIterator::new_bound_contiguous_ordered(array.spans());
                 assert_eq!(iter.collect::<Vec<_>>(), [([0, 0, 0], [3, 2, 1]),]);
 
                 array.offset = [0, 0, 0];
-                let iter = IndexIterator::new_bound_contiguous(array.spans());
+                let iter = IndexIterator::new_bound_contiguous_ordered(array.spans());
                 assert_eq!(iter.collect::<Vec<_>>(), [([0, 0, 0], [3, 2, 1]),]);
             }
         }
