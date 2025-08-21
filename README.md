@@ -28,7 +28,6 @@ equal to an **exact** multiple of the given axis length. That is, a call to inse
 two rows must be provided **exactly** two rows of elements.
 
 ```rust
-
 // A 2-dimensional circular array of 3*3 elements.
 let mut array = CircularArrayVec::new([3, 3], vec![
     0, 1, 2,
@@ -148,7 +147,6 @@ shape equal to the shape of the circular array, with the specified axis set to
 the length of the given range.
 
 ```rust
-
 // A 3-dimensional circular array of 3*3*2 elements.
 let array = CircularArrayVec::new([3, 3, 2], vec![
      0,  1,  2,
@@ -187,7 +185,6 @@ dimensional slice of the array. This can be used to limit iteration to an
 exact subset of elements.
 
 ```rust
-
 // A 3-dimensional circular array of 3*3*2 elements.
 let array = CircularArrayVec::new([3, 3, 2], vec![
      0,  1,  2,
@@ -224,7 +221,6 @@ assert_eq!(array.iter_slice([0..2, 1..3, 0..1]).cloned().collect::<Vec<usize>>()
 [`CircularIndex::iter_slice`] and collecting into a new array.
 
 ```rust
-
 // A 3-dimensional circular array of 3*3*2 elements.
 let array3 = CircularArrayVec::new([3, 3, 2], vec![
      0,  1,  2,
@@ -258,7 +254,6 @@ Finally, `n_circular_array` supports [`std::ops::Index`] and [`std::ops::IndexMu
 taking an `N` dimensional index (`[usize; N]`) as argument.
 
 ```rust
-
 // A 2-dimensional circular array of 3*3 elements.
 let mut array = CircularArrayVec::new([3, 3], vec![
     0, 1, 2,
@@ -277,7 +272,7 @@ assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
 ## Features
 
 Feature | Description
----|---|---
+---|---
 `strides` | Exports [`Strides`] for flattening `N` dimensional indices during translation.
 
 ## Performance

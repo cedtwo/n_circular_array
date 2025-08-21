@@ -29,7 +29,6 @@
 //! # use n_circular_array::CircularArrayVec;
 //! # use n_circular_array::CircularMut;
 //! # use n_circular_array::CircularIndex;
-//!
 //! // A 2-dimensional circular array of 3*3 elements.
 //! let mut array = CircularArrayVec::new([3, 3], vec![
 //!     0, 1, 2,
@@ -155,7 +154,6 @@
 //! ```
 //! # use n_circular_array::CircularArrayVec;
 //! # use n_circular_array::CircularIndex;
-//!
 //! // A 3-dimensional circular array of 3*3*2 elements.
 //! let array = CircularArrayVec::new([3, 3, 2], vec![
 //!      0,  1,  2,
@@ -196,7 +194,6 @@
 //! ```
 //! # use n_circular_array::CircularArrayVec;
 //! # use n_circular_array::CircularIndex;
-//!
 //! // A 3-dimensional circular array of 3*3*2 elements.
 //! let array = CircularArrayVec::new([3, 3, 2], vec![
 //!      0,  1,  2,
@@ -235,7 +232,6 @@
 //! ```
 //! # use n_circular_array::CircularArrayVec;
 //! # use n_circular_array::CircularIndex;
-//!
 //! // A 3-dimensional circular array of 3*3*2 elements.
 //! let array3 = CircularArrayVec::new([3, 3, 2], vec![
 //!      0,  1,  2,
@@ -272,7 +268,6 @@
 //! # use n_circular_array::CircularArrayVec;
 //! # use n_circular_array::CircularMut;
 //! # use n_circular_array::CircularIndex;
-//!
 //! // A 2-dimensional circular array of 3*3 elements.
 //! let mut array = CircularArrayVec::new([3, 3], vec![
 //!     0, 1, 2,
@@ -291,7 +286,7 @@
 //! # Features
 //!
 //! Feature | Description
-//! ---|---|---
+//! ---|---
 //! `strides` | Exports [`Strides`] for flattening `N` dimensional indices during translation.
 //!
 //! # Performance
