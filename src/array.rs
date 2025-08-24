@@ -11,6 +11,9 @@ pub type CircularArrayBox<const N: usize, T> = CircularArray<N, Box<[T]>, T>;
 ///
 /// Supports any fixed size contiguous element buffer implementing `AsRef<[T]>`
 /// and `AsMut<T>`.
+///
+/// General array data is accessible as associated methods while element access
+/// and mutation are delegated to [`CircularIndex`](crate::CircularIndex) and [`CircularMut`](crate::CircularMut).
 pub struct CircularArray<const N: usize, A, T> {
     /// The circular array buffer.
     pub(crate) array: A,
@@ -71,21 +74,32 @@ where
         }
     }
 
-    /// Get the shape array.
+    /// Get the array shape.
     pub fn shape(&self) -> &[usize; N] {
         &self.shape
     }
 
-    /// Get the array strides.
+    #[cfg(feature = "strides")]
+    /// Get the array [`Strides`](crate::strides::Strides).
     pub fn strides(&self) -> &Strides<N> {
         &self.strides
     }
 
-    /// Get the array offset. This is not always incremented sequentually. Where a
-    /// mutating operation inserts elements equal to the product of the array shape,
-    /// the offset will be set to `[0; N]`.
+    /// Get the array offset.
+    ///
+    /// This is not always incremented sequentually. Where a mutating operation
+    /// inserts elements equal to the product of the array shape, the offset will
+    /// be set to `[0; N]`.
     pub fn offset(&self) -> &[usize; N] {
         &self.offset
+    }
+
+    /// Get a mutable reference to the array offset.
+    ///
+    /// Manually mutating the offset is **not** recommended unless clearing data. See
+    /// also [`CircularArray::data_mut`].
+    pub fn offset_mut(&mut self) -> &mut [usize; N] {
+        &mut self.offset
     }
 
     /// Get the number of elements in the array.
@@ -96,6 +110,46 @@ where
     /// Get the number of elements for a single slice of the buffer, for the given
     /// `axis`. Pushing `n` slices of elements onto an axis requires `n * slice_len`
     /// elements to be passed to the respective method.
+    ///
+    /// # Example
+    /// ```
+    /// # use n_circular_array::{CircularArray, CircularIndex};
+    /// let mut array = CircularArray::new([4, 3, 2], vec![
+    ///      0,  1,  2,  3,
+    ///      4,  5,  6,  7,
+    ///      8,  9, 10, 11,
+    ///
+    ///     12, 13, 14, 15,
+    ///     16, 17, 18, 19,
+    ///     20, 21, 22, 23,
+    /// ]);
+    ///
+    /// // A single slice of axis 0 is 6 elements.
+    /// assert_eq!(array.slice_len(0), 6);
+    /// assert_eq!(array.iter_index(0, 0).cloned().collect::<Vec<_>>(), [
+    ///      0,
+    ///      4,
+    ///      8,
+    ///     12,
+    ///     16,
+    ///     20
+    /// ]);
+    ///
+    /// // A single slice of axis 1 is 8 elements.
+    /// assert_eq!(array.slice_len(1), 8);
+    /// assert_eq!(array.iter_index(1, 0).cloned().collect::<Vec<_>>(), [
+    ///      0,  1,  2,  3,
+    ///     12, 13, 14, 15
+    /// ]);
+    ///
+    /// // A single slice of axis 2 is 12 elements.
+    /// assert_eq!(array.slice_len(2), 12);
+    /// assert_eq!(array.iter_index(2, 0).cloned().collect::<Vec<_>>(), [
+    ///      0,  1,  2,  3,
+    ///      4,  5,  6,  7,
+    ///      8,  9, 10, 11,
+    /// ]);
+    /// ```
     pub fn slice_len(&self, axis: usize) -> usize {
         self.shape
             .iter()
@@ -103,14 +157,27 @@ where
             .fold(1, |acc, (i, sh)| if i == axis { acc } else { acc * sh })
     }
 
-    /// Get the offset value after adding `n` slices to the given `axis`.
-    pub fn next_offset(&self, axis: usize, n: isize) -> usize {
-        (((self.shape[axis] + self.offset[axis]) as isize + n) % self.shape[axis] as isize) as usize
-    }
-
-    /// Drop the `CircularArray`, returning the inner buffer.
+    /// Drop the `CircularArray`, returning the inner buffer. Note that data is
+    /// returned without applying any normalizing operations.
     pub fn take(self) -> A {
         self.array
+    }
+
+    /// Get a reference to the inner buffer `A`.
+    ///
+    /// This may be useful for operations where element order is arbitrary. See
+    /// also [`CircularIndex::iter_raw`](crate::CircularIndex::iter_raw), [`CircularIndex::iter_index_raw`](crate::CircularIndex::iter_index_raw) and
+    /// [`CircularIndex::iter_slice_raw`](crate::CircularIndex::iter_slice_raw).
+    pub fn data(&self) -> &A {
+        &self.array
+    }
+
+    /// Get a mutable reference to the inner buffer `A`.
+    ///
+    /// Manually mutating data is **not** recommended unless clearing data. See
+    /// also [`CircularArray::offset_mut`].
+    pub fn data_mut(&mut self) -> &mut A {
+        &mut self.array
     }
 }
 

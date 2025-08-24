@@ -4,7 +4,7 @@ use crate::index::RawIndexSpan;
 use crate::span::{BoundSpan, UnboundSpan};
 use crate::span_iter::{BoundSpanIterator, SpanIterator, UnboundSpanIterator};
 
-/// [`CircularArray`] `N` dimensional index span iterator.
+/// [`CircularArray`](crate::CircularArray) `N` dimensional index span iterator.
 ///
 /// Derives contiguous indices from the Cartesian product of axis spans within.
 /// Produces `N` dimensional [`RawIndexSpan`]s defining the bounds of contiguous
@@ -51,7 +51,7 @@ impl<const D: usize> IndexIterator<D, BoundSpanIterator> {
     }
 
     /// Create a new iterator for bound axis spans. Spans are contiguous across
-    /// axes where possible. This should be preffered destination arrays when
+    /// axes where possible. This should be preffered for destination arrays when
     /// mapping elements from iterators or contiguous slices.
     pub(crate) fn new_bound_contiguous(spans: [BoundSpan; D]) -> Self {
         let mut cont = true;
@@ -71,7 +71,7 @@ impl<const D: usize> IndexIterator<D, BoundSpanIterator> {
     // `push_fn` mutation methods.
 
     /// Create a new iterator for bound axis spans. Spans are contiguous across
-    /// axes where possible and always ordered.
+    /// axes where possible and always contiguously ordered.
     #[allow(dead_code)]
     pub(crate) fn new_bound_contiguous_ordered(spans: [BoundSpan; D]) -> Self {
         let mut cont = true;

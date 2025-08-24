@@ -18,8 +18,10 @@ macro_rules! bench {
             bench_iter!(iter, $d, $n);
             bench_iter!(iter_raw, $d, $n);
             bench_iter!(iter_index(0, 1), $d, $n);
+            bench_iter!(iter_index_contiguous(0, 1), $d, $n);
             bench_iter!(iter_index_raw(0, 1), $d, $n);
             bench_iter!(iter_range(0, 1..$d), $d, $n);
+            bench_iter!(iter_range_contiguous(0, 1..$d), $d, $n);
             bench_iter!(iter_range_raw(0, 1..$d), $d, $n);
         }
     };

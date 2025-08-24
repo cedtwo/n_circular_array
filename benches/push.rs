@@ -92,7 +92,8 @@ macro_rules! bench_push_iter_method {
 }
 
 /// Bench push methods for an array of `d` dimensions of `n` elements.
-macro_rules! bench_push_fn {
+#[allow(unused)]
+macro_rules! bench_translate {
     (
         $name:ident,
         $d:literal,
@@ -100,15 +101,17 @@ macro_rules! bench_push_fn {
     ) => {
         mod $name {
             use super::*;
+            use n_circular_array::Strides;
 
-            bench_push_fn_method!(push_front_fn, $d, $n);
-            bench_push_fn_method!(push_back_fn, $d, $n);
+            bench_translate_method!(translate_front, $d, $n);
+            bench_translate_method!(translate_back, $d, $n);
         }
     };
 }
 
 /// Bench a specified push slice method for an array of `d` dimensions of `n` elements.
-macro_rules! bench_push_fn_method {
+#[allow(unused)]
+macro_rules! bench_translate_method {
     (
         $method:ident,
         $d:literal,
@@ -121,24 +124,17 @@ macro_rules! bench_push_fn_method {
             let mut dst =
                 CircularArrayBox::from_iter(DST_SHAPE, 0..DST_SHAPE.iter().product::<usize>());
 
-            const SRC_SHAPE: [usize; $d] = [$n * 2; $d];
-            let src = [99]
-                .repeat(SRC_SHAPE.iter().product())
-                .into_iter()
-                .collect::<Vec<_>>();
-            let src_strides = Strides::new(&SRC_SHAPE);
-            let src_fn = |idx: [std::ops::Range<usize>; $d]| &src[src_strides.flatten_range(idx)];
+            let src = [99].repeat(usize::pow($n, ($d - 1) as u32));
+            let src_fn = |idx: [std::ops::Range<usize>; $d]| &src[0..idx[0].len()];
 
             let mut axis = 0;
-            let mut push_n = 1;
-            let mut origin = [1; $d];
+            let mut origin = [$d - 1; $d];
 
             bencher.iter(|| {
                 axis = (axis + 1) % $d;
-                push_n = (push_n % $n).max(1);
-                origin[axis] = (origin[axis] % (SRC_SHAPE[axis] - DST_SHAPE[axis])).max(1);
+                origin[axis] = origin[axis] + 1 % $d;
 
-                dst.$method(axis, push_n, origin, src_fn);
+                dst.$method(axis, $d - 1, origin, src_fn);
             });
 
             black_box(dst);
@@ -172,10 +168,10 @@ mod push_iter {
 mod translate {
     use super::*;
 
-    bench_push_fn!(d2_n05, 2, 5);
-    bench_push_fn!(d2_n10, 2, 10);
-    bench_push_fn!(d3_n05, 3, 5);
-    bench_push_fn!(d3_n10, 3, 10);
-    bench_push_fn!(d4_n05, 4, 5);
-    bench_push_fn!(d4_n10, 4, 10);
+    bench_translate!(d2_n05, 2, 5);
+    bench_translate!(d2_n10, 2, 10);
+    bench_translate!(d3_n05, 3, 5);
+    bench_translate!(d3_n10, 3, 10);
+    bench_translate!(d4_n05, 4, 5);
+    bench_translate!(d4_n10, 4, 10);
 }

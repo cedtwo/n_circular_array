@@ -103,7 +103,7 @@ impl Iterator for UnboundSpanIterator {
 
 /// [`BoundSpan`] span iterator. Produces [`UnboundSpan`]s of **contiguous**
 /// elements during iteration. In contrast to [`UnboundSpanIterator`], this may
-/// produce additional [`UnboundSpan`]s across axis bounds.
+/// split [`UnboundSpan`]s across axis bounds.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct BoundSpanIterator {
     /// The span that will be iterated over.

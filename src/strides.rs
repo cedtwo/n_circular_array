@@ -29,6 +29,7 @@ impl<const N: usize> Strides<N> {
     ///
     /// This method is used for mapping between a *source* array to the *destination*
     /// `CircularArray`. As such, it expects a range **only** contiguous on axis `0`.
+    #[allow(dead_code)]
     pub fn flatten_range(&self, mut index_range: [Range<usize>; N]) -> Range<usize> {
         debug_assert!(
             index_range.iter().skip(1).all(|range| range.len() == 1),

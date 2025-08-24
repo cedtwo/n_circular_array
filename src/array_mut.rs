@@ -234,8 +234,8 @@ pub trait CircularMut<'a, const N: usize, T> {
     /// Note that the caler should ensure that a translation of `n` is within the
     /// *source* array bounds prior to calling this function.
     ///
-    /// In the following example, we pre-calculate the [`crate::Strides`] of
-    /// the *source* array to flatten the `N` dimensional index into a contiguous
+    /// In the following example, we pre-calculate the [`Strides`](crate::strides::Strides)
+    /// of the *source* array to flatten the `N` dimensional index into a contiguous
     /// range (requires feature flag `strides`). Alternatively, the index range can
     /// be passed to 3rd party crates for slicing operations.
     ///
@@ -304,8 +304,8 @@ pub trait CircularMut<'a, const N: usize, T> {
     /// Note that the caler should ensure that a translation of `n` is within the
     /// *source* array bounds prior to calling this function.
     ///
-    /// In the following example, we pre-calculate the [`crate::Strides`] of
-    /// the *source* array to flatten the `N` dimensional index into a contiguous
+    /// In the following example, we pre-calculate the [`Strides`](crate::strides::Strides)
+    /// of the *source* array to flatten the `N` dimensional index into a contiguous
     /// range (requires feature flag `strides`). Alternatively, the index range can
     /// be passed to 3rd party crates for slicing operations.
     ///
