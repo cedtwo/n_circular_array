@@ -9,6 +9,7 @@ An n-dimensional circular array.
 - Element retrieval by `N` dimensional index, range or slice.
 - Element insertion to the front or back of any axis.
 - `N` dimensional translation over a source array.
+- Element iteration in sequentual or contiguous order.
 - Support for external types through `AsRef<[T]>` and `AsMut<[T]>`.
 - Optimized for contiguous memory.
 - Thorough testing for arrays of smaller dimensionality.
@@ -76,8 +77,9 @@ handles slicing and mutation, and translation logic (the current translation, ou
 bound translation etc.) must be maintained by the user.
 
 In the following example, rather than passing the `[Range<usize>; N]` slice to a
-3rd-party crate, we define the source array [`Strides`], then call [`Strides::flatten_range`]
-to get a single contiguous range for slicing (requires feature `strides`).
+3rd-party crate, we define the source array [`Strides`](strides::Strides),
+then call [`Strides::flatten_range`](strides::Strides::flatten_range) to get
+a single contiguous range for slicing (requires feature `strides`).
 ```rust
 // A [5, 5] source array.
 let src = [
@@ -137,7 +139,7 @@ assert_eq!(origin, [2, 1]);
 - Access elements by `N` dimensional slice.
 - Access individual elements by index.
 
-### Slicing an axis
+#### Slicing an axis
 
 All elements of an axis can be iterated over by index or range. Calling
 [`CircularIndex::iter_index`] returns an iterator of elements of a shape
@@ -178,7 +180,7 @@ assert_eq!(array.iter_range(1, 1..3).cloned().collect::<Vec<usize>>(), &[
 ]);
 ```
 
-### Slicing the array
+#### Slicing the array
 
 Calling [`CircularIndex::iter_slice`] can be used to iterate over an `N`
 dimensional slice of the array. This can be used to limit iteration to an
@@ -269,13 +271,62 @@ assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
 ]);
 ```
 
-## Features
+### Raw and Contiguous Operations
+
+`n_circular_array` also include operations for iterating over elements of the
+array while only offsetting the data of a subset of axes. `_contiguous` suffixed
+operations return identical elements to their offset counterpart, however element
+order is contiguous (arbitrary for most cases). `_raw` suffixed operations consider
+data as having no offset and therefore all elements are contiguous. Both `_contiguous`
+and `_raw` operations are more performant than their fully offset counterparts,
+although the difference is negligable for smaller arrays.
+
+```rust
+// A 2-dimensional circular array of 3*3 elements.
+let mut array = CircularArrayVec::new([3, 3, 2], vec![
+     0,  1,  2,
+     3,  4,  5,
+     6,  7,  8,
+
+     9, 10, 11,
+    12, 13, 14,
+    15, 16, 17,
+]);
+
+array.push_front(0, &[100].repeat(6));
+array.push_front(1, &[100].repeat(6));
+
+assert_eq!(array.iter().cloned().collect::<Vec<usize>>(), &[
+      4,   5, 100,
+      7,   8, 100,
+    100, 100, 100,
+
+     13,  14, 100,
+     16,  17, 100,
+    100, 100, 100
+]);
+// All axes are offset.
+assert_eq!(array.iter_index(1, 0).cloned().collect::<Vec<usize>>(), &[
+      4,   5, 100,
+     13,  14, 100,
+]);
+// Identical to above, however element order is arbitrary.
+assert_eq!(array.iter_index_contiguous(1, 0).cloned().collect::<Vec<usize>>(), &[
+     100,  4,   5,
+     100, 13,  14,
+]);
+
+// Our operation does not care about order.
+assert_eq!(array.iter_index_contiguous(0, 0).filter(|val| **val >= 100).count(), 2);
+```
+
+### Feature Flags
 
 Feature | Description
 ---|---
-`strides` | Exports [`Strides`] for flattening `N` dimensional indices during translation.
+`strides` | Exports [`Strides`](strides::Strides) for flattening `N` dimensional indices during translation.
 
-## Performance
+### Performance
 
 Wrapping contigous slices over the bounds of an axis reduces cache locality,
 especially for the innermost dimensions of any `n > 1` array. Where possible,
@@ -285,12 +336,13 @@ slices of memory where possible, which can result in operations being reduced to
 as little as a single iteration over a contiguous slice, or a single call to
 `copy_from_slice` during mutation.
 
-External types implementing `AsRef<[T]>` and `AsMut<[T]>` may also improve performance
+External types implementing `AsRef<[T]>` and `AsMut<[T]>` can improve performance
 over `Vec<T>` or `Box<T>`. If necessary, `AsRef<[T]>` and `AsMut<[T]>` can be delegated
 to `unsafe` methods, although this is discouraged.
 
 Finally, for smaller arrays, avoiding a circular array and simply copying (or cloning)
 an array window may outperform `n_circular_array`. Benchmark if unsure whether
 your use case benefits from `n_circular_array`.
+
 
 License: MIT OR Apache-2.0
